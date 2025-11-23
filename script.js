@@ -814,8 +814,13 @@ async function createHeatmapLayer(placeType, recommendations) {
                 circle.neighborhoodData = neighborhood;
             }
             
-            appState.heatmapCircles.push(circle);
+            circlesToAdd.push(circle);
         }
+    });
+    
+    // Batch add all circles to the map at once for better performance
+    circlesToAdd.forEach(circle => {
+        appState.heatmapCircles.push(circle);
     });
     
     // Store info for reference
