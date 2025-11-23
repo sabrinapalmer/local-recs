@@ -1,0 +1,191 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="Discover and share the best spots in Chicago. Interactive map with user recommendations and hotspots.">
+    <meta name="keywords" content="Chicago, recommendations, map, restaurants, bars, attractions">
+    <title>Chicago Recommendations - Find the Best Spots</title>
+    <link rel="stylesheet" href="styles.css">
+    <!-- Google AdSense - Will be loaded dynamically from ads-config.js -->
+    <script id="adsense-script" async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js"
+     crossorigin="anonymous"></script>
+    <!-- Ad Configuration -->
+    <script src="ads-config.js"></script>
+    <!-- Load our script first to define initMap before Google Maps API loads -->
+    <script src="script.js"></script>
+    <script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyDUQ03JcuuC_cokDLE5szlFXfiW9qsyzaA&libraries=places,geometry,marker&loading=async&callback=initMap"></script>
+    <!-- Load Place Autocomplete Element -->
+    <script async src="https://www.gstatic.com/mapsplatform/places/widget/v1/places.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+</head>
+<body>
+    <!-- Left Ad Frame -->
+    <aside class="ad-frame ad-left" aria-label="Advertisement space">
+        <div class="ad-container">
+            <ins class="adsbygoogle"
+                 style="display:block"
+                 data-ad-format="vertical"
+                 data-full-width-responsive="false"></ins>
+            <div class="ad-placeholder" id="leftAdPlaceholder">
+                <p>Advertisement</p>
+                <div class="ad-content">160x600</div>
+            </div>
+        </div>
+    </aside>
+
+    <!-- Right Ad Frame -->
+    <aside class="ad-frame ad-right" aria-label="Advertisement space">
+        <div class="ad-container">
+            <ins class="adsbygoogle"
+                 style="display:block"
+                 data-ad-format="vertical"
+                 data-full-width-responsive="false"></ins>
+            <div class="ad-placeholder" id="rightAdPlaceholder">
+                <p>Advertisement</p>
+                <div class="ad-content">160x600</div>
+            </div>
+        </div>
+    </aside>
+
+    <!-- Main Content -->
+    <main class="main-content" role="main">
+        <!-- Map Container -->
+        <div class="map-container" id="mapContainer">
+            <div id="map" class="map" role="application" aria-label="Interactive map of Chicago recommendations">
+                <div class="map-loading" id="mapLoading">
+                    <div class="loading"></div>
+                    <p>Loading map...</p>
+                </div>
+            </div>
+            
+            <!-- Floating Controls Over Map -->
+            <div class="floating-controls">
+                <!-- Search Control -->
+                <div class="floating-search" id="searchControl">
+                    <input 
+                        type="text" 
+                        id="neighborhoodSearch" 
+                        class="search-input-small"
+                        placeholder="Search"
+                        autocomplete="address-line1"
+                        aria-label="Search for a location in Chicago"
+                    >
+                    <button type="button" id="goBtn" class="go-btn-small" aria-label="Go to location">Go</button>
+                </div>
+                
+                <!-- Recommendations Panel (collapsible) -->
+                <div class="recommendations-panel" id="recommendationsPanel">
+                    <div class="panel-header" id="panelHeader">
+                        <div class="panel-info" id="panelInfo">Loading...</div>
+                        <button type="button" class="panel-toggle" id="panelToggle" aria-label="Toggle panel" aria-expanded="false">
+                            <span class="toggle-icon">▼</span>
+                        </button>
+                    </div>
+                    <div class="panel-content" id="panelContent">
+                        <div class="filter-actions">
+                            <button type="button" id="selectAllBtn" class="select-all-btn">Select All</button>
+                        </div>
+                        <div class="filter-checkboxes">
+                            <label class="filter-checkbox">
+                                <input type="checkbox" value="restaurant" checked data-color="#e74c3c">
+                                <span class="color-dot" style="background: #e74c3c;"></span>
+                                Restaurant
+                            </label>
+                            <label class="filter-checkbox">
+                                <input type="checkbox" value="bar" checked data-color="#3498db">
+                                <span class="color-dot" style="background: #3498db;"></span>
+                                Bar
+                            </label>
+                            <label class="filter-checkbox">
+                                <input type="checkbox" value="museum" checked data-color="#9b59b6">
+                                <span class="color-dot" style="background: #9b59b6;"></span>
+                                Museum/Gallery
+                            </label>
+                            <label class="filter-checkbox">
+                                <input type="checkbox" value="cafe" checked data-color="#f39c12">
+                                <span class="color-dot" style="background: #f39c12;"></span>
+                                Cafe
+                            </label>
+                            <label class="filter-checkbox">
+                                <input type="checkbox" value="park" checked data-color="#27ae60">
+                                <span class="color-dot" style="background: #27ae60;"></span>
+                                Park
+                            </label>
+                            <label class="filter-checkbox">
+                                <input type="checkbox" value="theater" checked data-color="#e67e22">
+                                <span class="color-dot" style="background: #e67e22;"></span>
+                                Theater
+                            </label>
+                            <label class="filter-checkbox">
+                                <input type="checkbox" value="shopping" checked data-color="#1abc9c">
+                                <span class="color-dot" style="background: #1abc9c;"></span>
+                                Shopping
+                            </label>
+                            <label class="filter-checkbox">
+                                <input type="checkbox" value="nightclub" checked data-color="#c0392b">
+                                <span class="color-dot" style="background: #c0392b;"></span>
+                                Nightclub
+                            </label>
+                            <label class="filter-checkbox">
+                                <input type="checkbox" value="hotel" checked data-color="#34495e">
+                                <span class="color-dot" style="background: #34495e;"></span>
+                                Hotel
+                            </label>
+                            <label class="filter-checkbox">
+                                <input type="checkbox" value="attraction" checked data-color="#16a085">
+                                <span class="color-dot" style="background: #16a085;"></span>
+                                Attraction
+                            </label>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Add Button -->
+                <button type="button" id="addBtn" class="floating-add-btn" aria-label="Add recommendation">+</button>
+            </div>
+        </div>
+
+        <!-- Add Recommendation Modal (hidden by default) -->
+        <div class="add-modal" id="addModal">
+            <div class="modal-content">
+                <button class="modal-close" id="closeModal" aria-label="Close modal">×</button>
+                <h2>Add Recommendation</h2>
+                <form id="recommendationForm" class="recommendation-form" novalidate>
+                    <div class="form-group">
+                        <label for="placeType">Type</label>
+                        <select id="placeType" name="placeType" required>
+                            <option value="">Select type...</option>
+                            <option value="restaurant">Restaurant</option>
+                            <option value="bar">Bar</option>
+                            <option value="museum">Museum/Gallery</option>
+                            <option value="cafe">Cafe</option>
+                            <option value="park">Park</option>
+                            <option value="theater">Theater</option>
+                            <option value="shopping">Shopping</option>
+                            <option value="nightclub">Nightclub</option>
+                            <option value="hotel">Hotel</option>
+                            <option value="attraction">Tourist Attraction</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="location">Location</label>
+                        <input 
+                            type="text" 
+                            id="location" 
+                            name="location" 
+                            placeholder="Enter location..."
+                            required
+                            autocomplete="address-line1"
+                        >
+                    </div>
+                    <button type="button" id="submitRecommendationBtn" class="submit-btn">
+                        Submit
+                    </button>
+                </form>
+            </div>
+        </div>
+    </main>
+
+</body>
+</html>
