@@ -758,26 +758,31 @@ async function createHeatmapLayer(placeType, recommendations) {
     
     // Create heatmap circles for each neighborhood
     Object.values(neighborhoods).forEach(neighborhood => {
-        // Base radius calculation: scales with recommendation count of THIS type only
-        // Wider range: 50m minimum (for 1 rec) up to 2500m maximum (for many recs)
-        // This creates a much wider range to better distinguish popularity differences
-        const baseRadius = Math.max(50, Math.min(50 + (neighborhood.count * 80), 2500));
+        // Base radius calculation: uses logarithmic scaling to prevent excessive overlap
+        // Best practice: Use logarithmic scaling for better distribution and reduced overlap
+        // Range: 50m minimum (for 1 rec) up to 1000m maximum (reduced from 2500m to prevent overlap)
+        // Logarithmic scaling: log(count + 1) provides smoother size progression
+        const maxCount = 50; // Assume max ~50 recs per neighborhood for scaling
+        const logScale = Math.log(neighborhood.count + 1) / Math.log(maxCount + 1); // Normalized 0-1
+        const baseRadius = Math.max(50, Math.min(50 + (logScale * 950), 1000)); // 50m to 1000m range
         
         // Create multiple overlapping circles with smooth gradient fade for blur effect
-        // Optimized: Reduced layers for faster rendering while maintaining smooth gradient
-        const blurLayers = 12; // Balanced: smooth enough but faster than 20
-        const blurStep = baseRadius * 0.04; // Optimized step size
+        // Best practice: Use Gaussian-like distribution for smoother gradient
+        // Optimized: 15 layers for smooth gradient without excessive rendering
+        const blurLayers = 15; // Slightly more layers for smoother gradient
+        const blurStep = baseRadius * 0.06; // Larger step for better coverage
         
-        // Create blur layers (outer to inner) with improved smooth opacity gradient
+        // Create blur layers (outer to inner) with Gaussian-like smooth opacity gradient
         for (let i = blurLayers - 1; i >= 0; i--) {
             const layerRadius = baseRadius + (blurStep * i);
-            // Improved smooth opacity curve using ease-out cubic for natural fade
-            // This creates a better color-to-transparent gradient
-            const normalizedPos = (blurLayers - i) / blurLayers; // 0 to 1
-            // Ease-out cubic: smoother fade at edges, more visible in center
-            const eased = 1 - Math.pow(1 - normalizedPos, 3);
-            // Apply smooth gradient: starts very transparent, fades to more opaque
-            const layerOpacity = eased * 0.5; // Max 0.5 opacity for better visibility
+            // Gaussian-like opacity distribution for smoother fade
+            // Distance from center (normalized): 0 = center, 1 = edge
+            const distanceFromCenter = i / blurLayers; // 0 (center) to 1 (outermost)
+            // Gaussian curve: e^(-x²/2σ²) where σ controls the spread
+            const sigma = 0.4; // Controls how quickly opacity drops (lower = sharper, higher = smoother)
+            const gaussian = Math.exp(-Math.pow(distanceFromCenter, 2) / (2 * Math.pow(sigma, 2)));
+            // Apply smooth gradient with max opacity of 0.6 for better visibility
+            const layerOpacity = gaussian * 0.6;
             
             const circle = new google.maps.Circle({
                 strokeColor: 'transparent', // Explicitly transparent to avoid any dark edges
