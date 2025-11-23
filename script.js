@@ -743,8 +743,9 @@ async function createHeatmapLayer(placeType, recommendations) {
     // Create heatmap circles for each neighborhood
     Object.values(neighborhoods).forEach(neighborhood => {
         // Base radius calculation: scales with recommendation count of THIS type only
-        // Minimum 300m for 1-2 recs, up to 1200m for many recs
-        const baseRadius = Math.max(300, Math.min(300 + (neighborhood.count * 40), 1200));
+        // Expanded range: 200m minimum (for 1 rec) up to 2000m maximum (for many recs)
+        // This makes it easier to distinguish popularity differences
+        const baseRadius = Math.max(200, Math.min(200 + (neighborhood.count * 60), 2000));
         
         // Create multiple overlapping circles with decreasing opacity for blur effect
         const blurLayers = 4; // Number of layers for blur effect
