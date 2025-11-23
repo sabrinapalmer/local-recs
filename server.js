@@ -42,15 +42,17 @@ function initializeDatabase() {
             console.log('Connected to SQLite database');
             
             // Create table if it doesn't exist
+            // Note: SQLite doesn't allow parameters in CHECK constraints, so we hardcode the values
+            const placeTypesList = VALID_PLACE_TYPES.map(t => `'${t}'`).join(', ');
             db.run(`CREATE TABLE IF NOT EXISTS recommendations (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
-                place_type TEXT NOT NULL CHECK(place_type IN (${VALID_PLACE_TYPES.map(() => '?').join(', ')})),
+                place_type TEXT NOT NULL CHECK(place_type IN (${placeTypesList})),
                 location_name TEXT NOT NULL,
                 latitude REAL NOT NULL CHECK(latitude >= -90 AND latitude <= 90),
                 longitude REAL NOT NULL CHECK(longitude >= -180 AND longitude <= 180),
                 place_name TEXT,
                 created_at DATETIME DEFAULT CURRENT_TIMESTAMP
-            )`, VALID_PLACE_TYPES, (err) => {
+            )`, (err) => {
                 if (err) {
                     console.error('Error creating table:', err.message);
                     reject(err);
