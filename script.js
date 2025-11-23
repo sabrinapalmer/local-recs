@@ -101,6 +101,7 @@ class AppState {
         this.streetViewService = null;
         this.streetViewPanorama = null;
         this.markers = [];
+        this.heatmapCircles = []; // Store heatmap circles
         this.heatmapLayers = {};
         this.allRecommendations = [];
         this.filteredRecommendations = [];
@@ -611,24 +612,93 @@ function escapeHtml(text) {
 }
 
 /**
- * Create visual heatmap effect using markers
- * Since HeatmapLayer is deprecated, we use individual markers with color coding
+ * Calculate density clusters for heatmap visualization
+ * Groups nearby recommendations and creates heat circles
+ */
+function calculateDensityClusters(recommendations, radiusMeters = 500) {
+    const clusters = [];
+    const processed = new Set();
+    
+    recommendations.forEach((rec, index) => {
+        if (processed.has(index)) return;
+        
+        const cluster = {
+            center: { lat: rec.latitude, lng: rec.longitude },
+            count: 1,
+            recommendations: [rec]
+        };
+        
+        // Find nearby recommendations
+        recommendations.forEach((otherRec, otherIndex) => {
+            if (index === otherIndex || processed.has(otherIndex)) return;
+            
+            const distance = google.maps.geometry.spherical.computeDistanceBetween(
+                new google.maps.LatLng(rec.latitude, rec.longitude),
+                new google.maps.LatLng(otherRec.latitude, otherRec.longitude)
+            );
+            
+            if (distance <= radiusMeters) {
+                cluster.count++;
+                cluster.recommendations.push(otherRec);
+                processed.add(otherIndex);
+                
+                // Update center to average position
+                cluster.center.lat = (cluster.center.lat * (cluster.count - 1) + otherRec.latitude) / cluster.count;
+                cluster.center.lng = (cluster.center.lng * (cluster.count - 1) + otherRec.longitude) / cluster.count;
+            }
+        });
+        
+        processed.add(index);
+        clusters.push(cluster);
+    });
+    
+    return clusters;
+}
+
+/**
+ * Create visual heatmap effect using colored circles and markers
  * @param {string} placeType - Place type
  * @param {Array} recommendations - Array of recommendations
  */
 async function createHeatmapLayer(placeType, recommendations) {
-    // Since HeatmapLayer is deprecated, we'll just create markers
-    // The visual "heatmap" effect comes from the density of markers
+    if (!recommendations || recommendations.length === 0) return;
+    
     const color = PLACE_TYPE_COLORS[placeType] || '#667eea';
     
-    // Create markers for all recommendations
-    // The clustering/hotspot effect is visual based on marker density
+    // Calculate density clusters for heatmap circles
+    const clusters = calculateDensityClusters(recommendations, 300); // 300 meter radius
+    
+    // Create heatmap circles for clusters
+    clusters.forEach(cluster => {
+        // Circle size based on density (more recommendations = larger circle)
+        const radius = Math.min(300 + (cluster.count * 50), 800); // 300-800 meters
+        const opacity = Math.min(0.3 + (cluster.count * 0.1), 0.6); // 0.3-0.6 opacity
+        
+        const circle = new google.maps.Circle({
+            strokeColor: color,
+            strokeOpacity: 0.8,
+            strokeWeight: 2,
+            fillColor: color,
+            fillOpacity: opacity,
+            map: appState.map,
+            center: cluster.center,
+            radius: radius,
+            zIndex: 1 // Behind markers
+        });
+        
+        appState.heatmapCircles.push(circle);
+    });
+    
+    // Create individual markers for all recommendations
     for (const rec of recommendations) {
         await createMarker(rec, color);
     }
     
-    // Store info for reference (no longer using actual heatmap layer)
-    appState.heatmapLayers[placeType] = { count: recommendations.length };
+    // Store info for reference
+    appState.heatmapLayers[placeType] = { 
+        count: recommendations.length,
+        clusters: clusters.length 
+    };
 }
 
 /**

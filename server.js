@@ -368,65 +368,96 @@ app.post('/api/seed', (req, res) => {
     }
     
     function insertSampleData() {
-        // Sample data - popular Chicago locations
+        // Sample data - popular Chicago locations with accurate coordinates
         const sampleData = [
-        // Restaurants
+        // Restaurants (more diverse locations)
         { place_type: 'restaurant', location_name: 'The Loop', latitude: 41.8781, longitude: -87.6298, place_name: 'Alinea' },
         { place_type: 'restaurant', location_name: 'River North', latitude: 41.8917, longitude: -87.6244, place_name: 'Girl & The Goat' },
         { place_type: 'restaurant', location_name: 'Wicker Park', latitude: 41.9076, longitude: -87.6774, place_name: 'Big Star' },
         { place_type: 'restaurant', location_name: 'Lincoln Park', latitude: 41.9256, longitude: -87.6388, place_name: 'Cafe Ba-Ba-Reeba!' },
         { place_type: 'restaurant', location_name: 'West Loop', latitude: 41.8781, longitude: -87.6478, place_name: 'Au Cheval' },
+        { place_type: 'restaurant', location_name: 'West Loop', latitude: 41.8815, longitude: -87.6445, place_name: 'Monteverde' },
+        { place_type: 'restaurant', location_name: 'River North', latitude: 41.8942, longitude: -87.6278, place_name: 'Gibsons Bar & Steakhouse' },
+        { place_type: 'restaurant', location_name: 'Logan Square', latitude: 41.9280, longitude: -87.7014, place_name: 'Lula Cafe' },
+        { place_type: 'restaurant', location_name: 'Lakeview', latitude: 41.9400, longitude: -87.6534, place_name: 'Tango Sur' },
+        { place_type: 'restaurant', location_name: 'The Loop', latitude: 41.8825, longitude: -87.6244, place_name: 'The Gage' },
         
-        // Bars
+        // Bars (more locations)
         { place_type: 'bar', location_name: 'River North', latitude: 41.8917, longitude: -87.6244, place_name: 'Three Dots and a Dash' },
         { place_type: 'bar', location_name: 'Wicker Park', latitude: 41.9076, longitude: -87.6774, place_name: 'The Violet Hour' },
         { place_type: 'bar', location_name: 'Logan Square', latitude: 41.9280, longitude: -87.7014, place_name: 'Revolution Brewing' },
         { place_type: 'bar', location_name: 'Lakeview', latitude: 41.9400, longitude: -87.6534, place_name: 'The Aviary' },
         { place_type: 'bar', location_name: 'Fulton Market', latitude: 41.8858, longitude: -87.6481, place_name: 'The Broken Shaker' },
+        { place_type: 'bar', location_name: 'River North', latitude: 41.8942, longitude: -87.6278, place_name: 'Cindy\'s Rooftop' },
+        { place_type: 'bar', location_name: 'Wicker Park', latitude: 41.9100, longitude: -87.6750, place_name: 'Dusek\'s' },
+        { place_type: 'bar', location_name: 'West Loop', latitude: 41.8815, longitude: -87.6445, place_name: 'The Press Room' },
+        { place_type: 'bar', location_name: 'Lincoln Park', latitude: 41.9256, longitude: -87.6388, place_name: 'Delilah\'s' },
+        { place_type: 'bar', location_name: 'The Loop', latitude: 41.8825, longitude: -87.6244, place_name: 'The Berkshire Room' },
         
-        // Museums
-        { place_type: 'museum', location_name: 'Museum Campus', latitude: 41.8661, longitude: -87.6070, place_name: 'Art Institute of Chicago' },
-        { place_type: 'museum', location_name: 'Museum Campus', latitude: 41.8661, longitude: -87.6070, place_name: 'Field Museum' },
-        { place_type: 'museum', location_name: 'Museum Campus', latitude: 41.8661, longitude: -87.6070, place_name: 'Shedd Aquarium' },
+        // Museums (with correct coordinates)
+        { place_type: 'museum', location_name: 'The Loop', latitude: 41.8796, longitude: -87.6237, place_name: 'Art Institute of Chicago' },
+        { place_type: 'museum', location_name: 'Museum Campus', latitude: 41.8661, longitude: -87.6167, place_name: 'Field Museum' },
+        { place_type: 'museum', location_name: 'Museum Campus', latitude: 41.8677, longitude: -87.6089, place_name: 'Shedd Aquarium' },
         { place_type: 'museum', location_name: 'Near North Side', latitude: 41.8976, longitude: -87.6215, place_name: 'Museum of Contemporary Art' },
-        { place_type: 'museum', location_name: 'Hyde Park', latitude: 41.7886, longitude: -87.5981, place_name: 'Museum of Science and Industry' },
+        { place_type: 'museum', location_name: 'Hyde Park', latitude: 41.7915, longitude: -87.5836, place_name: 'Museum of Science and Industry' },
+        { place_type: 'museum', location_name: 'Museum Campus', latitude: 41.8656, longitude: -87.6117, place_name: 'Adler Planetarium' },
+        { place_type: 'museum', location_name: 'The Loop', latitude: 41.8781, longitude: -87.6298, place_name: 'Chicago Cultural Center' },
         
-        // Cafes
+        // Cafes (more locations)
         { place_type: 'cafe', location_name: 'Wicker Park', latitude: 41.9076, longitude: -87.6774, place_name: 'Intelligentsia Coffee' },
         { place_type: 'cafe', location_name: 'Logan Square', latitude: 41.9280, longitude: -87.7014, place_name: 'Gaslight Coffee Roasters' },
         { place_type: 'cafe', location_name: 'Lincoln Park', latitude: 41.9256, longitude: -87.6388, place_name: 'La Colombe Coffee' },
         { place_type: 'cafe', location_name: 'West Loop', latitude: 41.8781, longitude: -87.6478, place_name: 'Sawada Coffee' },
         { place_type: 'cafe', location_name: 'River North', latitude: 41.8917, longitude: -87.6244, place_name: 'Hero Coffee Bar' },
+        { place_type: 'cafe', location_name: 'The Loop', latitude: 41.8825, longitude: -87.6244, place_name: 'Caffe Umbria' },
+        { place_type: 'cafe', location_name: 'Lakeview', latitude: 41.9400, longitude: -87.6534, place_name: 'Starbucks Reserve' },
+        { place_type: 'cafe', location_name: 'Wicker Park', latitude: 41.9100, longitude: -87.6750, place_name: 'Wormhole Coffee' },
         
-        // Parks
+        // Parks (accurate coordinates)
         { place_type: 'park', location_name: 'Lincoln Park', latitude: 41.9256, longitude: -87.6388, place_name: 'Lincoln Park' },
         { place_type: 'park', location_name: 'Grant Park', latitude: 41.8781, longitude: -87.6298, place_name: 'Grant Park' },
         { place_type: 'park', location_name: 'Millennium Park', latitude: 41.8825, longitude: -87.6244, place_name: 'Millennium Park' },
         { place_type: 'park', location_name: 'Hyde Park', latitude: 41.7886, longitude: -87.5981, place_name: 'Washington Park' },
-        { place_type: 'park', location_name: 'Near North Side', latitude: 41.8976, longitude: -87.6215, place_name: 'Navy Pier' },
+        { place_type: 'park', location_name: 'Near North Side', latitude: 41.8917, longitude: -87.6089, place_name: 'Navy Pier' },
+        { place_type: 'park', location_name: 'The Loop', latitude: 41.8825, longitude: -87.6244, place_name: 'Maggie Daley Park' },
+        { place_type: 'park', location_name: 'Lincoln Park', latitude: 41.9256, longitude: -87.6388, place_name: 'North Avenue Beach' },
         
         // Theaters
-        { place_type: 'theater', location_name: 'The Loop', latitude: 41.8781, longitude: -87.6298, place_name: 'Chicago Theatre' },
-        { place_type: 'theater', location_name: 'River North', latitude: 41.8917, longitude: -87.6244, place_name: 'Steppenwolf Theatre' },
-        { place_type: 'theater', location_name: 'Lincoln Park', latitude: 41.9256, longitude: -87.6388, place_name: 'Steppenwolf Theatre Company' },
-        { place_type: 'theater', location_name: 'The Loop', latitude: 41.8781, longitude: -87.6298, place_name: 'Goodman Theatre' },
+        { place_type: 'theater', location_name: 'The Loop', latitude: 41.8847, longitude: -87.6278, place_name: 'Chicago Theatre' },
+        { place_type: 'theater', location_name: 'Lincoln Park', latitude: 41.9256, longitude: -87.6388, place_name: 'Steppenwolf Theatre' },
+        { place_type: 'theater', location_name: 'The Loop', latitude: 41.8825, longitude: -87.6244, place_name: 'Goodman Theatre' },
+        { place_type: 'theater', location_name: 'The Loop', latitude: 41.8781, longitude: -87.6298, place_name: 'Cadillac Palace Theatre' },
+        { place_type: 'theater', location_name: 'The Loop', latitude: 41.8825, longitude: -87.6244, place_name: 'CIBC Theatre' },
+        { place_type: 'theater', location_name: 'River North', latitude: 41.8917, longitude: -87.6244, place_name: 'Lookingglass Theatre' },
         
         // Shopping
         { place_type: 'shopping', location_name: 'Magnificent Mile', latitude: 41.8976, longitude: -87.6244, place_name: 'Water Tower Place' },
         { place_type: 'shopping', location_name: 'Magnificent Mile', latitude: 41.8976, longitude: -87.6244, place_name: '900 North Michigan Shops' },
         { place_type: 'shopping', location_name: 'The Loop', latitude: 41.8781, longitude: -87.6298, place_name: 'Macy\'s State Street' },
         { place_type: 'shopping', location_name: 'River North', latitude: 41.8917, longitude: -87.6244, place_name: 'Nordstrom' },
+        { place_type: 'shopping', location_name: 'Magnificent Mile', latitude: 41.8976, longitude: -87.6244, place_name: 'Nike Chicago' },
+        { place_type: 'shopping', location_name: 'The Loop', latitude: 41.8825, longitude: -87.6244, place_name: 'Block 37' },
         
         // Hotels
         { place_type: 'hotel', location_name: 'Magnificent Mile', latitude: 41.8976, longitude: -87.6244, place_name: 'The Langham Chicago' },
         { place_type: 'hotel', location_name: 'River North', latitude: 41.8917, longitude: -87.6244, place_name: 'The Peninsula Chicago' },
         { place_type: 'hotel', location_name: 'The Loop', latitude: 41.8781, longitude: -87.6298, place_name: 'Chicago Athletic Association' },
+        { place_type: 'hotel', location_name: 'The Loop', latitude: 41.8825, longitude: -87.6244, place_name: 'Palmer House Hilton' },
+        { place_type: 'hotel', location_name: 'Magnificent Mile', latitude: 41.8976, longitude: -87.6244, place_name: 'Four Seasons Chicago' },
         
         // Attractions
         { place_type: 'attraction', location_name: 'Millennium Park', latitude: 41.8825, longitude: -87.6244, place_name: 'Cloud Gate (The Bean)' },
-        { place_type: 'attraction', location_name: 'Navy Pier', latitude: 41.8917, longitude: -87.6089, place_name: 'Navy Pier' },
-        { place_type: 'attraction', location_name: 'The Loop', latitude: 41.8781, longitude: -87.6298, place_name: 'Willis Tower Skydeck' },
-        { place_type: 'attraction', location_name: 'Lincoln Park', latitude: 41.9256, longitude: -87.6388, place_name: 'Lincoln Park Zoo' }
+        { place_type: 'attraction', location_name: 'Near North Side', latitude: 41.8917, longitude: -87.6089, place_name: 'Navy Pier' },
+        { place_type: 'attraction', location_name: 'The Loop', latitude: 41.8789, longitude: -87.6358, place_name: 'Willis Tower Skydeck' },
+        { place_type: 'attraction', location_name: 'Lincoln Park', latitude: 41.9256, longitude: -87.6388, place_name: 'Lincoln Park Zoo' },
+        { place_type: 'attraction', location_name: 'The Loop', latitude: 41.8825, longitude: -87.6244, place_name: 'Crown Fountain' },
+        { place_type: 'attraction', location_name: 'The Loop', latitude: 41.8781, longitude: -87.6298, place_name: 'Chicago Riverwalk' },
+        
+        // Nightclubs
+        { place_type: 'nightclub', location_name: 'River North', latitude: 41.8917, longitude: -87.6244, place_name: 'Sound-Bar' },
+        { place_type: 'nightclub', location_name: 'West Loop', latitude: 41.8781, longitude: -87.6478, place_name: 'The Underground' },
+        { place_type: 'nightclub', location_name: 'River North', latitude: 41.8942, longitude: -87.6278, place_name: 'Studio Paris' },
+        { place_type: 'nightclub', location_name: 'The Loop', latitude: 41.8825, longitude: -87.6244, place_name: 'The Mid' }
     ];
     
     const sql = `INSERT INTO recommendations (place_type, location_name, latitude, longitude, place_name)
