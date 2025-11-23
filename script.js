@@ -727,7 +727,7 @@ function createNeighborhoodInfoContent(neighborhood, placeType) {
 }
 
 /**
- * Create visual heatmap effect using neighborhood-based circles
+ * Create visual heatmap effect using neighborhood-based circles with blur effect
  * @param {string} placeType - Place type
  * @param {Array} recommendations - Array of recommendations
  */
@@ -741,42 +741,57 @@ async function createHeatmapLayer(placeType, recommendations) {
     
     // Create heatmap circles for each neighborhood
     Object.values(neighborhoods).forEach(neighborhood => {
-        // Circle size based on number of recommendations (more = larger)
-        const radius = Math.min(400 + (neighborhood.count * 30), 1000); // 400-1000 meters
-        const opacity = Math.min(0.3 + (neighborhood.count * 0.05), 0.7); // 0.3-0.7 opacity
+        // Base radius calculation: scales with recommendation count
+        // Minimum 300m for 1-2 recs, up to 1200m for many recs
+        const baseRadius = Math.max(300, Math.min(300 + (neighborhood.count * 40), 1200));
         
-        const circle = new google.maps.Circle({
-            strokeColor: color,
-            strokeOpacity: 0.9,
-            strokeWeight: 3,
-            fillColor: color,
-            fillOpacity: opacity,
-            map: appState.map,
-            center: neighborhood.center,
-            radius: radius,
-            zIndex: 1,
-            clickable: true
-        });
+        // Create multiple overlapping circles with decreasing opacity for blur effect
+        const blurLayers = 4; // Number of layers for blur effect
+        const blurStep = baseRadius * 0.15; // Distance between layers
         
-        // Create info window for this neighborhood
-        const infoContent = createNeighborhoodInfoContent(neighborhood, placeType);
-        const infoWindow = new google.maps.InfoWindow({
-            content: infoContent
-        });
-        
-        // Add click listener to show recommendations list
-        circle.addListener('click', () => {
-            // Close any other open info windows
-            if (appState.currentInfoWindow) {
-                appState.currentInfoWindow.close();
+        // Create blur layers (outer to inner)
+        for (let i = blurLayers - 1; i >= 0; i--) {
+            const layerRadius = baseRadius + (blurStep * i);
+            const layerOpacity = (0.15 * (i + 1)) / blurLayers; // Decreasing opacity from outer to inner
+            const strokeOpacity = i === 0 ? 0.6 : 0; // Only show stroke on innermost layer
+            
+            const circle = new google.maps.Circle({
+                strokeColor: color,
+                strokeOpacity: strokeOpacity,
+                strokeWeight: i === 0 ? 2 : 0,
+                fillColor: color,
+                fillOpacity: layerOpacity,
+                map: appState.map,
+                center: neighborhood.center, // Center based on average of all recommendations
+                radius: layerRadius,
+                zIndex: 1 + i, // Outer layers behind inner layers
+                clickable: i === 0 // Only innermost circle is clickable
+            });
+            
+            // Only add click listener to the innermost circle
+            if (i === 0) {
+                // Create info window for this neighborhood
+                const infoContent = createNeighborhoodInfoContent(neighborhood, placeType);
+                const infoWindow = new google.maps.InfoWindow({
+                    content: infoContent
+                });
+                
+                // Add click listener to show recommendations list
+                circle.addListener('click', () => {
+                    // Close any other open info windows
+                    if (appState.currentInfoWindow) {
+                        appState.currentInfoWindow.close();
+                    }
+                    infoWindow.open(appState.map, null);
+                    appState.currentInfoWindow = infoWindow;
+                });
+                
+                // Store neighborhood data with the main circle
+                circle.neighborhoodData = neighborhood;
             }
-            infoWindow.open(appState.map, null);
-            appState.currentInfoWindow = infoWindow;
-        });
-        
-        // Store neighborhood data with circle
-        circle.neighborhoodData = neighborhood;
-        appState.heatmapCircles.push(circle);
+            
+            appState.heatmapCircles.push(circle);
+        }
     });
     
     // Store info for reference
