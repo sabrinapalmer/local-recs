@@ -129,14 +129,58 @@ body {
     justify-content: flex-start;
     position: relative;
     padding: 0;
+    gap: 0;
+}
+
+/* Ad units - hidden by default, shown based on screen height */
+.ad-unit {
+    width: 100%;
+    display: none;
+    flex-shrink: 0;
+}
+
+.ad-unit-single {
+    height: 100vh;
+    display: flex;
+    align-items: stretch;
+}
+
+.ad-unit-top,
+.ad-unit-bottom {
+    height: 50vh;
+    display: flex;
+    align-items: stretch;
+}
+
+/* Show two ads if screen is tall enough (>= 1200px) */
+@media (min-height: 1200px) {
+    .ad-unit-single {
+        display: none;
+    }
+    .ad-unit-top,
+    .ad-unit-bottom {
+        display: flex;
+    }
+}
+
+/* Show single ad if screen is not tall enough */
+@media (max-height: 1199px) {
+    .ad-unit-top,
+    .ad-unit-bottom {
+        display: none;
+    }
+    .ad-unit-single {
+        display: flex;
+    }
 }
 
 .ad-container ins.adsbygoogle {
     display: block;
     width: 60px;
-    height: 100vh;
+    height: 100%;
     margin: 0;
     align-self: stretch;
+    flex: 1;
 }
 
 .ad-container ins.adsbygoogle:not(:empty) + .ad-placeholder,

@@ -26,11 +26,28 @@
 <body>
     <!-- Left Ad Frame -->
     <aside class="ad-frame ad-left" aria-label="Advertisement space">
-        <div class="ad-container">
-            <ins class="adsbygoogle"
-                 style="display:block"
-                 data-ad-format="vertical"
-                 data-full-width-responsive="false"></ins>
+        <div class="ad-container" id="leftAdContainer">
+            <!-- Top Ad (shown if screen is tall enough) -->
+            <div class="ad-unit ad-unit-top" id="leftAdTop">
+                <ins class="adsbygoogle"
+                     style="display:block"
+                     data-ad-format="vertical"
+                     data-full-width-responsive="false"></ins>
+            </div>
+            <!-- Bottom Ad (shown if screen is tall enough) -->
+            <div class="ad-unit ad-unit-bottom" id="leftAdBottom">
+                <ins class="adsbygoogle"
+                     style="display:block"
+                     data-ad-format="vertical"
+                     data-full-width-responsive="false"></ins>
+            </div>
+            <!-- Single Ad (shown if screen is not tall enough) -->
+            <div class="ad-unit ad-unit-single" id="leftAdSingle">
+                <ins class="adsbygoogle"
+                     style="display:block"
+                     data-ad-format="vertical"
+                     data-full-width-responsive="false"></ins>
+            </div>
             <div class="ad-placeholder" id="leftAdPlaceholder">
                 <p>Advertisement</p>
                 <div class="ad-content">160x600</div>
@@ -40,11 +57,28 @@
 
     <!-- Right Ad Frame -->
     <aside class="ad-frame ad-right" aria-label="Advertisement space">
-        <div class="ad-container">
-            <ins class="adsbygoogle"
-                 style="display:block"
-                 data-ad-format="vertical"
-                 data-full-width-responsive="false"></ins>
+        <div class="ad-container" id="rightAdContainer">
+            <!-- Top Ad (shown if screen is tall enough) -->
+            <div class="ad-unit ad-unit-top" id="rightAdTop">
+                <ins class="adsbygoogle"
+                     style="display:block"
+                     data-ad-format="vertical"
+                     data-full-width-responsive="false"></ins>
+            </div>
+            <!-- Bottom Ad (shown if screen is tall enough) -->
+            <div class="ad-unit ad-unit-bottom" id="rightAdBottom">
+                <ins class="adsbygoogle"
+                     style="display:block"
+                     data-ad-format="vertical"
+                     data-full-width-responsive="false"></ins>
+            </div>
+            <!-- Single Ad (shown if screen is not tall enough) -->
+            <div class="ad-unit ad-unit-single" id="rightAdSingle">
+                <ins class="adsbygoogle"
+                     style="display:block"
+                     data-ad-format="vertical"
+                     data-full-width-responsive="false"></ins>
+            </div>
             <div class="ad-placeholder" id="rightAdPlaceholder">
                 <p>Advertisement</p>
                 <div class="ad-content">160x600</div>

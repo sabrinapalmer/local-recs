@@ -120,7 +120,23 @@ function initializeAds() {
         
         // Push ads to AdSense
         try {
-            const adElements = document.querySelectorAll('.adsbygoogle');
+            // Determine if we should show two ads (tall screen) or one ad
+            const screenHeight = window.innerHeight;
+            const showTwoAds = screenHeight >= 1200;
+            
+            // Get visible ad elements based on screen height
+            let adElements;
+            if (showTwoAds) {
+                // Show top and bottom ads, hide single ad
+                adElements = document.querySelectorAll('.ad-unit-top .adsbygoogle, .ad-unit-bottom .adsbygoogle');
+                document.querySelectorAll('.ad-unit-single').forEach(el => el.style.display = 'none');
+                document.querySelectorAll('.ad-unit-top, .ad-unit-bottom').forEach(el => el.style.display = 'flex');
+            } else {
+                // Show single ad, hide top and bottom ads
+                adElements = document.querySelectorAll('.ad-unit-single .adsbygoogle');
+                document.querySelectorAll('.ad-unit-top, .ad-unit-bottom').forEach(el => el.style.display = 'none');
+                document.querySelectorAll('.ad-unit-single').forEach(el => el.style.display = 'flex');
+            }
             
             if (adElements.length === 0) {
                 console.warn('No ad elements found');
@@ -162,7 +178,7 @@ function initializeAds() {
                 if (!element.hasAttribute('data-adsbygoogle-status')) {
                     try {
                         (adsbygoogle = window.adsbygoogle || []).push({});
-                        console.log(`Initializing ${isLeftAd ? 'left' : 'right'} ad with slot: ${slotId}`);
+                        console.log(`Initializing ${isLeftAd ? 'left' : 'right'} ad (${showTwoAds ? 'two ads' : 'single ad'}) with slot: ${slotId}`);
                     } catch (error) {
                         console.warn('Error pushing ad:', error);
                     }

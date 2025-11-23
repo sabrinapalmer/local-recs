@@ -759,14 +759,18 @@ async function createHeatmapLayer(placeType, recommendations) {
         // This makes it easier to distinguish popularity differences
         const baseRadius = Math.max(200, Math.min(200 + (neighborhood.count * 60), 2000));
         
-        // Create multiple overlapping circles with decreasing opacity for blur effect
-        const blurLayers = 4; // Number of layers for blur effect
-        const blurStep = baseRadius * 0.15; // Distance between layers
+        // Create multiple overlapping circles with smooth gradient fade for blur effect
+        // Use more layers with smoother transitions to avoid banding
+        const blurLayers = 8; // More layers for smoother gradient
+        const blurStep = baseRadius * 0.08; // Smaller step between layers for smoother transition
         
-        // Create blur layers (outer to inner)
+        // Create blur layers (outer to inner) with smooth opacity gradient
         for (let i = blurLayers - 1; i >= 0; i--) {
             const layerRadius = baseRadius + (blurStep * i);
-            const layerOpacity = (0.15 * (i + 1)) / blurLayers; // Decreasing opacity from outer to inner
+            // Smooth opacity curve: outer layers very transparent, inner layers more opaque
+            // Use exponential curve for natural fade
+            const opacityProgress = (blurLayers - i) / blurLayers;
+            const layerOpacity = Math.pow(opacityProgress, 1.5) * 0.4; // Smooth curve, max 0.4 opacity
             
             const circle = new google.maps.Circle({
                 strokeColor: color,
