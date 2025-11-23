@@ -453,6 +453,7 @@ app.post('/api/seed', (req, res) => {
             }
         });
     });
+    }
 });
 
 /**
