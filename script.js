@@ -831,10 +831,6 @@ async function createHeatmapLayer(placeType, recommendations) {
 async function updateMapDisplayInternal() {
     if (!appState.map) return;
 
-    console.log('updateMapDisplay called');
-    console.log('Active filters:', Array.from(appState.activeFilters));
-    console.log('Total recommendations:', appState.allRecommendations.length);
-
     // Clear all existing markers first
     appState.resetMarkers();
     appState.resetHeatmaps();
@@ -843,8 +839,6 @@ async function updateMapDisplayInternal() {
     appState.filteredRecommendations = appState.allRecommendations.filter(rec =>
         appState.activeFilters.has(rec.place_type)
     );
-
-    console.log(`Filtering: ${appState.filteredRecommendations.length} of ${appState.allRecommendations.length} recommendations match filters`);
 
     if (appState.filteredRecommendations.length === 0) {
         updateMapInfo();
@@ -860,17 +854,15 @@ async function updateMapDisplayInternal() {
         byType[rec.place_type].push(rec);
     });
 
-    console.log('Grouped by type:', Object.keys(byType).map(type => `${type}: ${byType[type].length}`));
-
-    // Create visual heatmap effect and markers
-    // Process each type sequentially to ensure markers are created
+    // Create visual heatmap effect - batch creation for better performance
+    // Use Promise.all for parallel processing of different types
     try {
-        for (const placeType of Object.keys(byType)) {
-            await createHeatmapLayer(placeType, byType[placeType]);
-        }
-        console.log(`Created ${appState.markers.length} markers`);
+        const createPromises = Object.keys(byType).map(placeType => 
+            createHeatmapLayer(placeType, byType[placeType])
+        );
+        await Promise.all(createPromises);
     } catch (err) {
-        console.error('Error creating markers:', err);
+        console.error('Error creating heatmap layers:', err);
     }
 
     // Fit bounds after markers are created
