@@ -103,6 +103,7 @@ class AppState {
         this.markers = [];
         this.heatmapCircles = []; // Store heatmap circles
         this.heatmapLayers = {};
+        this.currentInfoWindow = null; // Track open info window
         this.allRecommendations = [];
         this.filteredRecommendations = [];
         this.activeFilters = new Set(Object.keys(PLACE_TYPE_COLORS));
