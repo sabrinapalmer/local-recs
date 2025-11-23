@@ -95,13 +95,14 @@ body {
 .ad-frame {
     position: fixed;
     top: 0;
+    bottom: 0;
     width: 60px;
     height: 100vh;
     background: rgba(240, 240, 240, 0.2);
     border: none;
     z-index: var(--z-fixed);
     display: flex;
-    align-items: center;
+    align-items: stretch;
     justify-content: center;
     backdrop-filter: blur(1px);
     transition: background var(--transition-base);
@@ -153,9 +154,9 @@ body {
     flex-direction: column;
     align-items: center;
     justify-content: flex-start;
-    min-height: 600px;
+    height: 100vh;
     position: absolute;
-    top: 20px;
+    top: 0;
     left: 0;
 }
 
