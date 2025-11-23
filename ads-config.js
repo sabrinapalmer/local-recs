@@ -5,8 +5,7 @@
 
 const AD_CONFIG = {
     // Your Google AdSense Publisher ID (starts with ca-pub-)
-    // Replace with your actual publisher ID from AdSense dashboard
-    PUBLISHER_ID: 'ca-pub-YOUR_PUBLISHER_ID',
+    PUBLISHER_ID: 'ca-pub-1825149073731971',
     
     // Ad Slot IDs (get these from your AdSense account)
     // Create ad units in AdSense and paste the slot IDs here
@@ -76,13 +75,11 @@ function monitorAdLoading() {
 }
 
 /**
- * Update AdSense script src with publisher ID
+ * Update AdSense script src with publisher ID (no longer needed - script is in HTML)
  */
 function updateAdSenseScript() {
-    const script = document.getElementById('adsense-script');
-    if (script && AD_CONFIG.isConfigured()) {
-        script.src = `https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=${AD_CONFIG.PUBLISHER_ID}`;
-    }
+    // Script is now loaded directly in HTML with publisher ID
+    // This function kept for backwards compatibility but does nothing
 }
 
 /**
