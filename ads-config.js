@@ -202,11 +202,24 @@ function initializeAds() {
  * Show demo/placeholder ads when AdSense is not configured
  */
 function showDemoAds() {
+    const screenHeight = window.innerHeight;
+    const showTwoAds = screenHeight >= 1200;
+    
+    // Update ad unit visibility
+    if (showTwoAds) {
+        document.querySelectorAll('.ad-unit-single').forEach(el => el.style.display = 'none');
+        document.querySelectorAll('.ad-unit-top, .ad-unit-bottom').forEach(el => el.style.display = 'flex');
+    } else {
+        document.querySelectorAll('.ad-unit-top, .ad-unit-bottom').forEach(el => el.style.display = 'none');
+        document.querySelectorAll('.ad-unit-single').forEach(el => el.style.display = 'flex');
+    }
+    
     const placeholders = document.querySelectorAll('.ad-placeholder');
     placeholders.forEach(placeholder => {
         placeholder.style.display = 'block';
+        const adHeight = showTwoAds ? '50vh' : '100vh';
         placeholder.innerHTML = `
-            <div style="width: 100%; max-width: 60px; height: 600px; 
+            <div style="width: 100%; max-width: 60px; height: ${adHeight}; 
                         background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); 
                         border-radius: 4px; display: flex; flex-direction: column; 
                         align-items: center; justify-content: center; 

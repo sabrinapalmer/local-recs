@@ -761,8 +761,8 @@ async function createHeatmapLayer(placeType, recommendations) {
         
         // Create multiple overlapping circles with smooth gradient fade for blur effect
         // Use more layers with smoother transitions to avoid banding
-        const blurLayers = 8; // More layers for smoother gradient
-        const blurStep = baseRadius * 0.08; // Smaller step between layers for smoother transition
+        const blurLayers = 12; // More layers for smoother gradient
+        const blurStep = baseRadius * 0.05; // Smaller step between layers for smoother transition
         
         // Create blur layers (outer to inner) with smooth opacity gradient
         for (let i = blurLayers - 1; i >= 0; i--) {
