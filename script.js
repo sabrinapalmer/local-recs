@@ -760,11 +760,11 @@ async function createHeatmapLayer(placeType, recommendations) {
     Object.values(neighborhoods).forEach(neighborhood => {
         // Base radius calculation: uses logarithmic scaling to prevent excessive overlap
         // Best practice: Use logarithmic scaling for better distribution and reduced overlap
-        // Range: 50m minimum (for 1 rec) up to 1000m maximum (reduced from 2500m to prevent overlap)
+        // Range: 50m minimum (for 1 rec) up to 500m maximum (reduced to prevent overlap)
         // Logarithmic scaling: log(count + 1) provides smoother size progression
         const maxCount = 50; // Assume max ~50 recs per neighborhood for scaling
         const logScale = Math.log(neighborhood.count + 1) / Math.log(maxCount + 1); // Normalized 0-1
-        const baseRadius = Math.max(50, Math.min(50 + (logScale * 950), 1000)); // 50m to 1000m range
+        const baseRadius = Math.max(50, Math.min(50 + (logScale * 450), 500)); // 50m to 500m range
         
         // Create multiple overlapping circles with smooth gradient fade for blur effect
         // Best practice: Use Gaussian-like distribution for smoother gradient

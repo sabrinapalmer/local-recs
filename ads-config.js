@@ -202,30 +202,25 @@ function initializeAds() {
  * Show demo/placeholder ads when AdSense is not configured
  */
 function showDemoAds() {
-    const screenHeight = window.innerHeight;
-    const showTwoAds = screenHeight >= 1200;
-    
-    // Update ad unit visibility
-    if (showTwoAds) {
-        document.querySelectorAll('.ad-unit-single').forEach(el => el.style.display = 'none');
-        document.querySelectorAll('.ad-unit-top, .ad-unit-bottom').forEach(el => el.style.display = 'flex');
-    } else {
-        document.querySelectorAll('.ad-unit-top, .ad-unit-bottom').forEach(el => el.style.display = 'none');
-        document.querySelectorAll('.ad-unit-single').forEach(el => el.style.display = 'flex');
-    }
+    // Always show single ad unit for demo
+    document.querySelectorAll('.ad-unit-top, .ad-unit-bottom').forEach(el => el.style.display = 'none');
+    document.querySelectorAll('.ad-unit-single').forEach(el => el.style.display = 'flex');
     
     const placeholders = document.querySelectorAll('.ad-placeholder');
     placeholders.forEach(placeholder => {
         placeholder.style.display = 'block';
-        const adHeight = showTwoAds ? '50vh' : '100vh';
+        // Use window height with margins on all sides
+        const margin = 20; // 20px margin on all sides
+        const adHeight = `calc(100vh - ${margin * 2}px)`;
         placeholder.innerHTML = `
-            <div style="width: 100%; max-width: 60px; height: ${adHeight}; 
+            <div style="width: calc(100% - ${margin * 2}px); max-width: calc(60px - ${margin * 2}px); 
+                        height: ${adHeight}; 
                         background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); 
                         border-radius: 4px; display: flex; flex-direction: column; 
                         align-items: center; justify-content: center; 
                         color: white; font-size: 10px; text-align: center; 
                         padding: 10px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-                        margin: 0 auto;">
+                        margin: ${margin}px auto;">
                 <p style="margin: 0 0 8px 0; font-weight: 600; font-size: 11px;">Ad</p>
                 <p style="margin: 0; font-size: 9px; opacity: 0.9; line-height: 1.3;">
                     Demo<br/>Space
