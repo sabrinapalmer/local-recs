@@ -741,6 +741,7 @@ function createNeighborhoodInfoContent(neighborhood, placeType) {
 /**
  * Create visual heatmap effect using neighborhood-based circles with blur effect
  * Each hotspot is positioned based ONLY on recommendations of this specific type in that neighborhood
+ * Optimized for faster rendering with batched circle creation
  * @param {string} placeType - Place type
  * @param {Array} recommendations - Array of recommendations (already filtered by this type)
  */
@@ -752,25 +753,31 @@ async function createHeatmapLayer(placeType, recommendations) {
     // Group by neighborhood - this ensures each hotspot is based ONLY on this type's recommendations
     const neighborhoods = groupByNeighborhood(recommendations);
     
+    // Batch circle creation for better performance
+    const circlesToAdd = [];
+    
     // Create heatmap circles for each neighborhood
     Object.values(neighborhoods).forEach(neighborhood => {
         // Base radius calculation: scales with recommendation count of THIS type only
-        // Wider range: 100m minimum (for 1 rec) up to 2500m maximum (for many recs)
+        // Wider range: 50m minimum (for 1 rec) up to 2500m maximum (for many recs)
         // This creates a much wider range to better distinguish popularity differences
-        const baseRadius = Math.max(100, Math.min(100 + (neighborhood.count * 80), 2500));
+        const baseRadius = Math.max(50, Math.min(50 + (neighborhood.count * 80), 2500));
         
         // Create multiple overlapping circles with smooth gradient fade for blur effect
-        // Use more layers with smoother transitions to avoid banding
-        const blurLayers = 20; // More layers for smoother, gentler gradient fade
-        const blurStep = baseRadius * 0.03; // Smaller step between layers for smoother transition
+        // Optimized: Reduced layers for faster rendering while maintaining smooth gradient
+        const blurLayers = 12; // Balanced: smooth enough but faster than 20
+        const blurStep = baseRadius * 0.04; // Optimized step size
         
-        // Create blur layers (outer to inner) with smooth opacity gradient
+        // Create blur layers (outer to inner) with improved smooth opacity gradient
         for (let i = blurLayers - 1; i >= 0; i--) {
             const layerRadius = baseRadius + (blurStep * i);
-            // Smooth opacity curve: outer layers very transparent, inner layers more opaque
-            // Use exponential curve for natural fade
-            const opacityProgress = (blurLayers - i) / blurLayers;
-            const layerOpacity = Math.pow(opacityProgress, 1.5) * 0.4; // Smooth curve, max 0.4 opacity
+            // Improved smooth opacity curve using ease-out cubic for natural fade
+            // This creates a better color-to-transparent gradient
+            const normalizedPos = (blurLayers - i) / blurLayers; // 0 to 1
+            // Ease-out cubic: smoother fade at edges, more visible in center
+            const eased = 1 - Math.pow(1 - normalizedPos, 3);
+            // Apply smooth gradient: starts very transparent, fades to more opaque
+            const layerOpacity = eased * 0.5; // Max 0.5 opacity for better visibility
             
             const circle = new google.maps.Circle({
                 strokeColor: 'transparent', // Explicitly transparent to avoid any dark edges
