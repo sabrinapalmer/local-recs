@@ -761,8 +761,8 @@ async function createHeatmapLayer(placeType, recommendations) {
         
         // Create multiple overlapping circles with smooth gradient fade for blur effect
         // Use more layers with smoother transitions to avoid banding
-        const blurLayers = 12; // More layers for smoother gradient
-        const blurStep = baseRadius * 0.05; // Smaller step between layers for smoother transition
+        const blurLayers = 20; // More layers for smoother, gentler gradient fade
+        const blurStep = baseRadius * 0.03; // Smaller step between layers for smoother transition
         
         // Create blur layers (outer to inner) with smooth opacity gradient
         for (let i = blurLayers - 1; i >= 0; i--) {
@@ -773,7 +773,7 @@ async function createHeatmapLayer(placeType, recommendations) {
             const layerOpacity = Math.pow(opacityProgress, 1.5) * 0.4; // Smooth curve, max 0.4 opacity
             
             const circle = new google.maps.Circle({
-                strokeColor: color,
+                strokeColor: 'transparent', // Explicitly transparent to avoid any dark edges
                 strokeOpacity: 0, // No stroke/edges
                 strokeWeight: 0,
                 fillColor: color,
