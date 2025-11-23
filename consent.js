@@ -9,12 +9,13 @@ function gtag() {
     dataLayer.push(arguments);
 }
 
-// Set default consent state to 'denied' (GDPR requirement)
+// Set default consent state - allow non-personalized ads by default
+// This allows ads to show before user consent, but without personalization
 gtag('consent', 'default', {
-    'ad_storage': 'denied',
-    'ad_user_data': 'denied',
-    'ad_personalization': 'denied',
-    'analytics_storage': 'denied',
+    'ad_storage': 'denied',           // No cookies for ads
+    'ad_user_data': 'denied',          // No user data collection
+    'ad_personalization': 'denied',    // No personalized ads (shows non-personalized)
+    'analytics_storage': 'denied',     // No analytics cookies
     'wait_for_update': 500
 });
 
@@ -69,16 +70,13 @@ const ConsentManager = {
         gtag('consent', 'update', {
             'ad_storage': consent,
             'ad_user_data': consent,
-            'ad_personalization': consent,
+            'ad_personalization': consent,  // Controls personalized vs non-personalized ads
             'analytics_storage': consent
         });
         
-        // If consent granted, reload ads
-        if (consent === 'granted') {
-            // Trigger ad initialization
-            if (typeof initializeAds === 'function') {
-                initializeAds();
-            }
+        // Always reload ads after consent update (they'll be personalized or non-personalized based on consent)
+        if (typeof initializeAds === 'function') {
+            initializeAds();
         }
     },
     
@@ -133,6 +131,10 @@ const ConsentManager = {
         };
         this.saveConsentPreferences(preferences);
         this.hideBanner();
+        // Reload ads with personalized settings
+        if (typeof initializeAds === 'function') {
+            setTimeout(() => initializeAds(), 500);
+        }
     },
     
     /**
@@ -145,6 +147,7 @@ const ConsentManager = {
         };
         this.saveConsentPreferences(preferences);
         this.hideBanner();
+        // Keep showing non-personalized ads (no need to reload, they're already non-personalized)
     },
     
     /**
@@ -177,12 +180,21 @@ const ConsentManager = {
      * Initialize consent management
      */
     init() {
+        // Always initialize ads immediately (will show non-personalized ads by default)
+        // This happens before user consent, which is allowed for non-personalized ads
+        if (typeof initializeAds === 'function') {
+            // Small delay to ensure AdSense script is loaded
+            setTimeout(() => {
+                initializeAds();
+            }, 1000);
+        }
+        
         // Check if user is in EEA, UK, or Switzerland (simplified check)
         // In production, you might want to use a geolocation service
         const preferences = this.getConsentPreferences();
         
         if (!preferences) {
-            // Show banner if no consent given
+            // Show banner if no consent given (ads already showing as non-personalized)
             this.showBanner();
         } else {
             // Update consent mode with saved preferences
@@ -233,6 +245,10 @@ const ConsentManager = {
                 this.saveConsentPreferences(preferences);
                 this.hideManageOptions();
                 this.hideBanner();
+                // Reload ads with updated consent settings
+                if (typeof initializeAds === 'function') {
+                    setTimeout(() => initializeAds(), 500);
+                }
             });
         }
     }

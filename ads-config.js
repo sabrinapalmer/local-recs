@@ -134,12 +134,29 @@ function initializeAds() {
                     return; // Already initialized
                 }
                 
-                // Set publisher ID and slot ID from config
-                const isLeftAd = element.closest('.ad-left');
-                const slotId = isLeftAd ? AD_CONFIG.LEFT_AD_SLOT : AD_CONFIG.RIGHT_AD_SLOT;
-                
-                element.setAttribute('data-ad-client', AD_CONFIG.PUBLISHER_ID);
-                element.setAttribute('data-ad-slot', slotId);
+            // Set publisher ID and slot ID from config
+            const isLeftAd = element.closest('.ad-left');
+            const slotId = isLeftAd ? AD_CONFIG.LEFT_AD_SLOT : AD_CONFIG.RIGHT_AD_SLOT;
+            
+            element.setAttribute('data-ad-client', AD_CONFIG.PUBLISHER_ID);
+            element.setAttribute('data-ad-slot', slotId);
+            
+            // Add non-personalized ads parameter if consent not granted
+            // This ensures non-personalized ads show before consent or if consent denied
+            const consentManager = window.ConsentManager;
+            if (consentManager) {
+                const preferences = consentManager.getConsentPreferences();
+                if (!preferences || preferences.consent !== true) {
+                    // Show non-personalized ads
+                    element.setAttribute('data-npa', '1');
+                } else {
+                    // Remove npa attribute for personalized ads
+                    element.removeAttribute('data-npa');
+                }
+            } else {
+                // Default to non-personalized if consent manager not ready
+                element.setAttribute('data-npa', '1');
+            }
                 
                 // Only push if not already pushed
                 if (!element.hasAttribute('data-adsbygoogle-status')) {
