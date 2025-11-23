@@ -121,20 +121,21 @@ body {
 
 .ad-container {
     width: 100%;
-    min-height: 100vh;
+    height: 100vh;
     display: flex;
     flex-direction: column;
     align-items: center;
     justify-content: flex-start;
     position: relative;
-    padding-top: 20px;
+    padding: 0;
 }
 
 .ad-container ins.adsbygoogle {
     display: block;
     width: 60px;
-    min-height: 600px;
-    margin: 0 auto;
+    height: 100vh;
+    margin: 0;
+    align-self: stretch;
 }
 
 .ad-container ins.adsbygoogle:not(:empty) + .ad-placeholder,

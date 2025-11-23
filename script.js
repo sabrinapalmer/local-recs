@@ -132,10 +132,18 @@ class AppState {
     }
 
     resetHeatmaps() {
-        // Clear heatmap circles from map
-        this.heatmapCircles.forEach(circle => {
-            circle.setMap(null);
-        });
+        // Clear heatmap circles from map - ensure all are removed
+        if (this.heatmapCircles && this.heatmapCircles.length > 0) {
+            this.heatmapCircles.forEach(circle => {
+                try {
+                    if (circle && typeof circle.setMap === 'function') {
+                        circle.setMap(null);
+                    }
+                } catch (err) {
+                    console.warn('Error removing circle:', err);
+                }
+            });
+        }
         this.heatmapCircles = [];
         // Clear metadata
         this.heatmapLayers = {};
