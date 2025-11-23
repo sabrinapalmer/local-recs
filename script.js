@@ -632,51 +632,101 @@ function calculateDistance(lat1, lon1, lat2, lon2) {
 }
 
 /**
- * Calculate density clusters for heatmap visualization
- * Groups nearby recommendations and creates heat circles
+ * Group recommendations by neighborhood and calculate average coordinates
+ * @param {Array} recommendations - Array of recommendations
+ * @returns {Object} Object with neighborhood names as keys and cluster data as values
  */
-function calculateDensityClusters(recommendations, radiusMeters = 500) {
-    const clusters = [];
-    const processed = new Set();
+function groupByNeighborhood(recommendations) {
+    const neighborhoods = {};
     
-    recommendations.forEach((rec, index) => {
-        if (processed.has(index)) return;
+    recommendations.forEach(rec => {
+        const neighborhood = rec.location_name || 'Unknown';
         
-        const cluster = {
-            center: { lat: rec.latitude, lng: rec.longitude },
-            count: 1,
-            recommendations: [rec]
-        };
+        if (!neighborhoods[neighborhood]) {
+            neighborhoods[neighborhood] = {
+                name: neighborhood,
+                recommendations: [],
+                totalLat: 0,
+                totalLng: 0,
+                count: 0
+            };
+        }
         
-        // Find nearby recommendations
-        recommendations.forEach((otherRec, otherIndex) => {
-            if (index === otherIndex || processed.has(otherIndex)) return;
-            
-            const distance = calculateDistance(
-                rec.latitude, rec.longitude,
-                otherRec.latitude, otherRec.longitude
-            );
-            
-            if (distance <= radiusMeters) {
-                cluster.count++;
-                cluster.recommendations.push(otherRec);
-                processed.add(otherIndex);
-                
-                // Update center to average position
-                cluster.center.lat = (cluster.center.lat * (cluster.count - 1) + otherRec.latitude) / cluster.count;
-                cluster.center.lng = (cluster.center.lng * (cluster.count - 1) + otherRec.longitude) / cluster.count;
-            }
-        });
-        
-        processed.add(index);
-        clusters.push(cluster);
+        neighborhoods[neighborhood].recommendations.push(rec);
+        neighborhoods[neighborhood].totalLat += rec.latitude;
+        neighborhoods[neighborhood].totalLng += rec.longitude;
+        neighborhoods[neighborhood].count++;
     });
     
-    return clusters;
+    // Calculate average coordinates for each neighborhood
+    Object.values(neighborhoods).forEach(neighborhood => {
+        neighborhood.center = {
+            lat: neighborhood.totalLat / neighborhood.count,
+            lng: neighborhood.totalLng / neighborhood.count
+        };
+        // Clean up temporary properties
+        delete neighborhood.totalLat;
+        delete neighborhood.totalLng;
+    });
+    
+    return neighborhoods;
 }
 
 /**
- * Create visual heatmap effect using colored circles and markers
+ * Create info window content for neighborhood hotspot
+ * @param {Object} neighborhood - Neighborhood cluster data
+ * @param {string} placeType - Place type
+ * @returns {string} HTML content for info window
+ */
+function createNeighborhoodInfoContent(neighborhood, placeType) {
+    const color = PLACE_TYPE_COLORS[placeType] || '#667eea';
+    const typeLabel = getPlaceTypeLabel(placeType);
+    
+    // Group recommendations by place name for display
+    const byPlace = {};
+    neighborhood.recommendations.forEach(rec => {
+        const key = rec.place_name || rec.location_name;
+        if (!byPlace[key]) {
+            byPlace[key] = [];
+        }
+        byPlace[key].push(rec);
+    });
+    
+    let content = `
+        <div style="padding: 10px; max-width: 300px; max-height: 400px; overflow-y: auto;">
+            <h3 style="margin: 0 0 8px 0; color: #333; font-size: 18px; font-weight: 600;">
+                ${escapeHtml(neighborhood.name)}
+            </h3>
+            <p style="margin: 0 0 10px 0; color: #666; font-size: 14px;">
+                <span style="display: inline-block; width: 14px; height: 14px; background: ${color}; border-radius: 50%; margin-right: 5px; vertical-align: middle;"></span>
+                ${escapeHtml(typeLabel)}: ${neighborhood.count} recommendations
+            </p>
+            <div style="border-top: 1px solid #eee; padding-top: 10px;">
+                <h4 style="margin: 0 0 8px 0; color: #333; font-size: 14px; font-weight: 600;">Recommendations:</h4>
+                <ul style="margin: 0; padding-left: 20px; list-style: none;">
+    `;
+    
+    Object.keys(byPlace).sort().forEach(placeName => {
+        const recs = byPlace[placeName];
+        const count = recs.length > 1 ? ` (${recs.length})` : '';
+        content += `
+            <li style="margin: 4px 0; color: #555; font-size: 13px;">
+                • ${escapeHtml(placeName)}${count}
+            </li>
+        `;
+    });
+    
+    content += `
+                </ul>
+            </div>
+        </div>
+    `;
+    
+    return content;
+}
+
+/**
+ * Create visual heatmap effect using neighborhood-based circles
  * @param {string} placeType - Place type
  * @param {Array} recommendations - Array of recommendations
  */
@@ -685,39 +735,53 @@ async function createHeatmapLayer(placeType, recommendations) {
     
     const color = PLACE_TYPE_COLORS[placeType] || '#667eea';
     
-    // Calculate density clusters for heatmap circles
-    const clusters = calculateDensityClusters(recommendations, 300); // 300 meter radius
+    // Group by neighborhood
+    const neighborhoods = groupByNeighborhood(recommendations);
     
-    // Create heatmap circles for clusters
-    clusters.forEach(cluster => {
-        // Circle size based on density (more recommendations = larger circle)
-        const radius = Math.min(300 + (cluster.count * 50), 800); // 300-800 meters
-        const opacity = Math.min(0.3 + (cluster.count * 0.1), 0.6); // 0.3-0.6 opacity
+    // Create heatmap circles for each neighborhood
+    Object.values(neighborhoods).forEach(neighborhood => {
+        // Circle size based on number of recommendations (more = larger)
+        const radius = Math.min(400 + (neighborhood.count * 30), 1000); // 400-1000 meters
+        const opacity = Math.min(0.3 + (neighborhood.count * 0.05), 0.7); // 0.3-0.7 opacity
         
         const circle = new google.maps.Circle({
             strokeColor: color,
-            strokeOpacity: 0.8,
-            strokeWeight: 2,
+            strokeOpacity: 0.9,
+            strokeWeight: 3,
             fillColor: color,
             fillOpacity: opacity,
             map: appState.map,
-            center: cluster.center,
+            center: neighborhood.center,
             radius: radius,
-            zIndex: 1 // Behind markers
+            zIndex: 1,
+            clickable: true
         });
         
+        // Create info window for this neighborhood
+        const infoContent = createNeighborhoodInfoContent(neighborhood, placeType);
+        const infoWindow = new google.maps.InfoWindow({
+            content: infoContent
+        });
+        
+        // Add click listener to show recommendations list
+        circle.addListener('click', () => {
+            // Close any other open info windows
+            if (appState.currentInfoWindow) {
+                appState.currentInfoWindow.close();
+            }
+            infoWindow.open(appState.map, null);
+            appState.currentInfoWindow = infoWindow;
+        });
+        
+        // Store neighborhood data with circle
+        circle.neighborhoodData = neighborhood;
         appState.heatmapCircles.push(circle);
     });
-    
-    // Create individual markers for all recommendations
-    for (const rec of recommendations) {
-        await createMarker(rec, color);
-    }
     
     // Store info for reference
     appState.heatmapLayers[placeType] = { 
         count: recommendations.length,
-        clusters: clusters.length 
+        neighborhoods: Object.keys(neighborhoods).length 
     };
 }
 
