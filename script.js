@@ -132,8 +132,12 @@ class AppState {
     }
 
     resetHeatmaps() {
-        // We're no longer using actual heatmap layers, just storing metadata
-        // So we just clear the object
+        // Clear heatmap circles from map
+        this.heatmapCircles.forEach(circle => {
+            circle.setMap(null);
+        });
+        this.heatmapCircles = [];
+        // Clear metadata
         this.heatmapLayers = {};
     }
 }
