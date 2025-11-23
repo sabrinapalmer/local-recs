@@ -371,7 +371,6 @@ app.post('/api/seed', (req, res) => {
         // Expanded sample data - popular Chicago locations with accurate coordinates
         // Grouped by neighborhood for better heatmap visualization
         const sampleData = [
-const EXPANDED_SAMPLE_DATA = [
     // The Loop - Restaurants (15)
     { place_type: 'restaurant', location_name: 'The Loop', latitude: 41.8781, longitude: -87.6298, place_name: 'Alinea' },
     { place_type: 'restaurant', location_name: 'The Loop', latitude: 41.8825, longitude: -87.6244, place_name: 'The Gage' },
@@ -674,9 +673,7 @@ const EXPANDED_SAMPLE_DATA = [
     { place_type: 'nightclub', location_name: 'West Loop', latitude: 41.8815, longitude: -87.6445, place_name: 'Primary' },
     { place_type: 'nightclub', location_name: 'West Loop', latitude: 41.8781, longitude: -87.6478, place_name: 'Castle' },
     { place_type: 'nightclub', location_name: 'West Loop', latitude: 41.8815, longitude: -87.6445, place_name: 'The Underground' }
-];
-
-        ];
+    ];
     
     const sql = `INSERT INTO recommendations (place_type, location_name, latitude, longitude, place_name)
                  VALUES (?, ?, ?, ?, ?)`;
