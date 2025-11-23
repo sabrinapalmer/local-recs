@@ -728,20 +728,21 @@ function createNeighborhoodInfoContent(neighborhood, placeType) {
 
 /**
  * Create visual heatmap effect using neighborhood-based circles with blur effect
+ * Each hotspot is positioned based ONLY on recommendations of this specific type in that neighborhood
  * @param {string} placeType - Place type
- * @param {Array} recommendations - Array of recommendations
+ * @param {Array} recommendations - Array of recommendations (already filtered by this type)
  */
 async function createHeatmapLayer(placeType, recommendations) {
     if (!recommendations || recommendations.length === 0) return;
     
     const color = PLACE_TYPE_COLORS[placeType] || '#667eea';
     
-    // Group by neighborhood
+    // Group by neighborhood - this ensures each hotspot is based ONLY on this type's recommendations
     const neighborhoods = groupByNeighborhood(recommendations);
     
     // Create heatmap circles for each neighborhood
     Object.values(neighborhoods).forEach(neighborhood => {
-        // Base radius calculation: scales with recommendation count
+        // Base radius calculation: scales with recommendation count of THIS type only
         // Minimum 300m for 1-2 recs, up to 1200m for many recs
         const baseRadius = Math.max(300, Math.min(300 + (neighborhood.count * 40), 1200));
         
@@ -753,16 +754,15 @@ async function createHeatmapLayer(placeType, recommendations) {
         for (let i = blurLayers - 1; i >= 0; i--) {
             const layerRadius = baseRadius + (blurStep * i);
             const layerOpacity = (0.15 * (i + 1)) / blurLayers; // Decreasing opacity from outer to inner
-            const strokeOpacity = i === 0 ? 0.6 : 0; // Only show stroke on innermost layer
             
             const circle = new google.maps.Circle({
                 strokeColor: color,
-                strokeOpacity: strokeOpacity,
-                strokeWeight: i === 0 ? 2 : 0,
+                strokeOpacity: 0, // No stroke/edges
+                strokeWeight: 0,
                 fillColor: color,
                 fillOpacity: layerOpacity,
                 map: appState.map,
-                center: neighborhood.center, // Center based on average of all recommendations
+                center: neighborhood.center, // Center based on weighted average of THIS TYPE's recommendations only
                 radius: layerRadius,
                 zIndex: 1 + i, // Outer layers behind inner layers
                 clickable: i === 0 // Only innermost circle is clickable
