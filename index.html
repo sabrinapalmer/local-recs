@@ -7,6 +7,8 @@
     <meta name="keywords" content="Chicago, recommendations, map, restaurants, bars, attractions">
     <title>Chicago Recommendations - Find the Best Spots</title>
     <link rel="stylesheet" href="styles.css">
+    <!-- Google Consent Mode v2 - Must load before AdSense -->
+    <script src="consent.js"></script>
     <!-- Google AdSense -->
     <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-1825149073731971"
      crossorigin="anonymous"></script>
@@ -18,6 +20,8 @@
     <!-- Load Place Autocomplete Element -->
     <script async src="https://www.gstatic.com/mapsplatform/places/widget/v1/places.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <!-- Google Consent Mode v2 - Must load before other scripts -->
+    <script src="consent.js"></script>
 </head>
 <body>
     <!-- Left Ad Frame -->
@@ -186,6 +190,40 @@
             </div>
         </div>
     </main>
+
+    <!-- Consent Banner (GDPR/CCPA) -->
+    <div id="consentBanner" class="consent-banner" style="display: none;">
+        <div class="consent-banner-content">
+            <div class="consent-banner-text">
+                <p>We use cookies and similar technologies to provide, protect and improve our services. By clicking "Accept", you consent to our use of cookies and personalized ads. <a href="#" id="consentManage" class="consent-link">Manage options</a></p>
+            </div>
+            <div class="consent-banner-buttons">
+                <button id="consentReject" class="consent-btn consent-btn-secondary">Do not consent</button>
+                <button id="consentAccept" class="consent-btn consent-btn-primary">Consent</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Consent Management Modal -->
+    <div id="consentModal" class="consent-modal" style="display: none;">
+        <div class="consent-modal-content">
+            <button id="consentModalClose" class="consent-modal-close" aria-label="Close">×</button>
+            <h2>Cookie Preferences</h2>
+            <p>We use cookies to enhance your browsing experience, serve personalized ads, and analyze our traffic. By clicking "Accept", you consent to our use of cookies.</p>
+            
+            <div class="consent-options">
+                <label class="consent-option">
+                    <input type="checkbox" id="consentCheckbox" checked>
+                    <span>Allow cookies for advertising and analytics</span>
+                </label>
+                <p class="consent-info">You can change these preferences at any time.</p>
+            </div>
+            
+            <div class="consent-modal-buttons">
+                <button id="consentSave" class="consent-btn consent-btn-primary">Save Preferences</button>
+            </div>
+        </div>
+    </div>
 
 </body>
 </html>
