@@ -1453,6 +1453,21 @@ gmp-place-autocomplete input:focus {
     border-top: 1px solid var(--color-gray-200);
 }
 
+.place-expanded-content {
+    display: flex;
+    flex-direction: column;
+    gap: var(--spacing-md);
+}
+
+/* When expanded, hide the collapsed layout and show expanded layout */
+.rec-summary.expanded .rec-summary-content {
+    flex-direction: column;
+}
+
+.rec-summary.expanded .rec-summary-info-text {
+    margin-bottom: var(--spacing-sm);
+}
+
 .rec-summary-info-text {
     display: flex;
     flex-direction: column;
