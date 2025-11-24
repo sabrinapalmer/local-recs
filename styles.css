@@ -1470,6 +1470,29 @@ gmp-place-autocomplete input:focus {
     width: 100%;
 }
 
+.place-summary-expanded {
+    display: flex;
+    flex-direction: column;
+    gap: var(--spacing-sm);
+    padding: var(--spacing-md);
+    background: var(--color-gray-50);
+    border-radius: var(--radius-md);
+    margin-top: var(--spacing-sm);
+}
+
+.place-summary-item {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-sm);
+    font-size: 0.9rem;
+    color: var(--color-gray-700);
+}
+
+.place-summary-item strong {
+    color: var(--color-gray-800);
+    min-width: 80px;
+}
+
 .rec-summary-info-text {
     display: flex;
     flex-direction: column;

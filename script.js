@@ -1519,14 +1519,18 @@ function formatExpandedDetails(place, recId) {
         `;
     }
     
-    // Address
+    // Full Address (if different from shortened)
     if (place.formatted_address) {
-        html += `
-            <div class="place-info-row">
-                <strong>📍 Address:</strong>
-                <span>${escapeHtml(place.formatted_address)}</span>
-            </div>
-        `;
+        const shortAddress = place.formatted_address.split(',')[0];
+        const fullAddress = place.formatted_address;
+        if (fullAddress !== shortAddress) {
+            html += `
+                <div class="place-info-row">
+                    <strong>📍 Full Address:</strong>
+                    <span>${escapeHtml(fullAddress)}</span>
+                </div>
+            `;
+        }
     }
     
     // Phone
@@ -1535,20 +1539,6 @@ function formatExpandedDetails(place, recId) {
             <div class="place-info-row">
                 <strong>📞 Phone:</strong>
                 <a href="tel:${place.formatted_phone_number}">${escapeHtml(place.formatted_phone_number)}</a>
-            </div>
-        `;
-    }
-    
-    // Rating
-    if (place.rating !== undefined) {
-        const stars = '⭐'.repeat(Math.round(place.rating));
-        const ratingText = place.user_ratings_total 
-            ? `${place.rating.toFixed(1)} ${stars} (${place.user_ratings_total.toLocaleString()} reviews)`
-            : `${place.rating.toFixed(1)} ${stars}`;
-        html += `
-            <div class="place-info-row">
-                <strong>⭐ Google Rating:</strong>
-                <span>${ratingText}</span>
             </div>
         `;
     }
