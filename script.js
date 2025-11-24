@@ -363,6 +363,11 @@ function initializeMap() {
         appState.mapInitialized = true;
         console.log('Map initialized successfully');
         
+        // Initialize HalftoneCircleOverlay class now that Google Maps is loaded
+        if (!HalftoneCircleOverlay && typeof google !== 'undefined' && google.maps && google.maps.OverlayView) {
+            HalftoneCircleOverlay = createHalftoneCircleOverlayClass();
+        }
+        
         // Hide loading indicator
         const loadingElement = document.getElementById('mapLoading');
         if (loadingElement) {
@@ -1766,8 +1771,14 @@ function createNeighborhoodInfoContent(neighborhood, placeType) {
 /**
  * Halftone Circle Overlay for Google Maps
  * Creates a halftone pattern circle overlay
+ * This class is defined as a function that creates the class after Google Maps loads
  */
-class HalftoneCircleOverlay extends google.maps.OverlayView {
+function createHalftoneCircleOverlayClass() {
+    if (typeof google === 'undefined' || !google.maps || !google.maps.OverlayView) {
+        return null;
+    }
+    
+    class HalftoneCircleOverlay extends google.maps.OverlayView {
     constructor(center, radius, color, opacity) {
         super();
         this.center = center;
@@ -1866,7 +1877,12 @@ class HalftoneCircleOverlay extends google.maps.OverlayView {
         }
         this.div = null;
     }
+    
+    return HalftoneCircleOverlay;
 }
+
+// Initialize HalftoneCircleOverlay class after Google Maps loads
+let HalftoneCircleOverlay = null;
 
 /**
  * Create visual heatmap effect using neighborhood-based circles with blur effect
@@ -1935,13 +1951,26 @@ async function createHeatmapLayer(placeType, recommendations) {
             );
             
             // Create halftone overlay for visual effect (all layers)
-            const halftoneOverlay = new HalftoneCircleOverlay(
-                center,
-                layerRadius,
-                color,
-                layerOpacity * 0.4 * (1 - i * 0.15) // Lower opacity for prettier blending, fade for outer layers
-            );
-            halftoneOverlay.setMap(appState.map);
+            // Ensure HalftoneCircleOverlay class is available
+            if (!HalftoneCircleOverlay && typeof google !== 'undefined' && google.maps && google.maps.OverlayView) {
+                HalftoneCircleOverlay = createHalftoneCircleOverlayClass();
+            }
+            
+            if (HalftoneCircleOverlay) {
+                const halftoneOverlay = new HalftoneCircleOverlay(
+                    center,
+                    layerRadius,
+                    color,
+                    layerOpacity * 0.4 * (1 - i * 0.15) // Lower opacity for prettier blending, fade for outer layers
+                );
+                halftoneOverlay.setMap(appState.map);
+                
+                // Store overlay for cleanup
+                if (!appState.halftoneOverlays) {
+                    appState.halftoneOverlays = [];
+                }
+                appState.halftoneOverlays.push(halftoneOverlay);
+            }
             
             // Store overlay for cleanup
             if (!appState.halftoneOverlays) {
