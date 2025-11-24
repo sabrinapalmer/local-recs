@@ -146,7 +146,20 @@ class AppState {
                 }
             });
         }
+        // Clear halftone overlays
+        if (this.halftoneOverlays && this.halftoneOverlays.length > 0) {
+            this.halftoneOverlays.forEach(overlay => {
+                try {
+                    if (overlay && typeof overlay.setMap === 'function') {
+                        overlay.setMap(null);
+                    }
+                } catch (err) {
+                    console.warn('Error removing halftone overlay:', err);
+                }
+            });
+        }
         this.heatmapCircles = [];
+        this.halftoneOverlays = [];
         this.clickableCircles = []; // Clear clickable circles cache
         // Clear metadata
         this.heatmapLayers = {};
