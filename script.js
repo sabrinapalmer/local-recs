@@ -731,7 +731,13 @@ function showHotspotModal(lat, lng, overlappingHotspots) {
     const modalBody = document.getElementById('hotspotModalBody');
     const modalTitle = document.getElementById('hotspotModalTitle');
     
-    if (!modal || !modalBody) return;
+    if (!modal || !modalBody) {
+        console.error('Hotspot modal elements not found');
+        return;
+    }
+    
+    // Debug logging
+    console.log('Showing hotspot modal with', Object.keys(overlappingHotspots).length, 'types');
     
     // Collect all recommendations from all overlapping hotspots
     const allRecommendations = [];
@@ -968,15 +974,26 @@ async function createHeatmapLayer(placeType, recommendations) {
                 
                 // Add click listener to show recommendations list in modal
                 circle.addListener('click', (event) => {
-                    // Get the clicked position from the event
-                    const clickedLat = event.latLng.lat();
-                    const clickedLng = event.latLng.lng();
+                    // Get the clicked position from the event, or use circle center as fallback
+                    let clickedLat, clickedLng;
+                    if (event && event.latLng) {
+                        clickedLat = event.latLng.lat();
+                        clickedLng = event.latLng.lng();
+                    } else {
+                        // Fallback to circle center
+                        clickedLat = circle.center.lat;
+                        clickedLng = circle.center.lng;
+                    }
                     
                     // Find all overlapping hotspots at this location
                     const overlappingHotspots = findOverlappingHotspots(clickedLat, clickedLng);
                     
-                    // Show modal with all overlapping hotspots
-                    showHotspotModal(clickedLat, clickedLng, overlappingHotspots);
+                    // Only show modal if we found overlapping hotspots
+                    if (Object.keys(overlappingHotspots).length > 0) {
+                        showHotspotModal(clickedLat, clickedLng, overlappingHotspots);
+                    } else {
+                        console.warn('No overlapping hotspots found at clicked location');
+                    }
                 });
                 
                 // Store neighborhood data with the main circle
