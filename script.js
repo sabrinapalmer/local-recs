@@ -1925,50 +1925,70 @@ async function createHeatmapLayer(placeType, recommendations) {
             // If all neighborhoods have the same count, use middle size
             linearScale = 0.5;
         }
-        // Use a single halftone overlay per neighborhood to reduce creation cost
-        const overlayRadius = baseRadius * 1.25; // Slightly larger for soft edge
+        // Create multiple overlapping circles with smooth gradient fade for blur effect
+        // Use fewer layers and smaller step to keep circles crisp
+        const blurLayers = 6;
+        const blurStep = baseRadius * 0.05;
         
-        // Ensure center is a proper LatLng object
-        const center = new google.maps.LatLng(
-            neighborhood.center.lat,
-            neighborhood.center.lng
-        );
-        
-        // Ensure HalftoneCircleOverlay class is available
-        if (!HalftoneCircleOverlay && typeof google !== 'undefined' && google.maps && google.maps.OverlayView) {
-            HalftoneCircleOverlay = createHalftoneCircleOverlayClass();
-        }
-        
-        if (HalftoneCircleOverlay) {
-            const halftoneOverlay = new HalftoneCircleOverlay(
-                center,
-                overlayRadius,
-                color,
-                0.38 // Slightly lower opacity to keep view clear
-            );
-            halftoneOverlay.setMap(appState.map);
+        // Create blur layers (outer to inner) with Gaussian-like smooth opacity gradient
+        for (let i = blurLayers - 1; i >= 0; i--) {
+            const layerRadius = baseRadius + (blurStep * i);
+            // Gaussian-like opacity distribution for smoother fade
+            // Distance from center (normalized): 0 = center, 1 = edge
+            const distanceFromCenter = i / blurLayers; // 0 (center) to 1 (outermost)
+            // Gaussian curve: e^(-x²/2σ²) where σ controls the spread
+            const sigma = 0.3; // Lower sigma for a tighter fade
+            const gaussian = Math.exp(-Math.pow(distanceFromCenter, 2) / (2 * Math.pow(sigma, 2)));
+            // Apply smooth gradient with slightly lower max opacity to avoid fuzziness
+            const layerOpacity = gaussian * 0.45;
             
-            if (!appState.halftoneOverlays) {
-                appState.halftoneOverlays = [];
+            // Ensure center is a proper LatLng object
+            const center = new google.maps.LatLng(
+                neighborhood.center.lat,
+                neighborhood.center.lng
+            );
+            
+            // Create halftone overlay for visual effect (all layers)
+            // Ensure HalftoneCircleOverlay class is available
+            if (!HalftoneCircleOverlay && typeof google !== 'undefined' && google.maps && google.maps.OverlayView) {
+                HalftoneCircleOverlay = createHalftoneCircleOverlayClass();
             }
-            appState.halftoneOverlays.push(halftoneOverlay);
-        }
-        
-        // Create clickable circle (transparent, just for click detection)
-        const circle = new google.maps.Circle({
-            strokeColor: 'transparent',
-            strokeOpacity: 0,
-            strokeWeight: 0,
-            fillColor: color,
-            fillOpacity: 0.01, // Nearly transparent, just for click detection
-            map: appState.map,
-            center: center,
-            radius: baseRadius,
-            zIndex: 1000,
-            clickable: true
-        });
-        
-        // Only add click listener once
+            
+            if (HalftoneCircleOverlay) {
+                const halftoneOverlay = new HalftoneCircleOverlay(
+                    center,
+                    layerRadius,
+                    color,
+                    layerOpacity * 0.4 * (1 - i * 0.15) // Lower opacity for prettier blending, fade for outer layers
+                );
+                halftoneOverlay.setMap(appState.map);
+                
+                // Store overlay for cleanup
+                if (!appState.halftoneOverlays) {
+                    appState.halftoneOverlays = [];
+                }
+                appState.halftoneOverlays.push(halftoneOverlay);
+            }
+            
+            // Create clickable circle (transparent, just for click detection) - only for innermost
+            let circle = null;
+            if (i === 0) {
+                circle = new google.maps.Circle({
+                    strokeColor: 'transparent',
+                    strokeOpacity: 0,
+                    strokeWeight: 0,
+                    fillColor: color,
+                    fillOpacity: 0.01, // Nearly transparent, just for click detection
+                    map: appState.map,
+                    center: center,
+                    radius: layerRadius,
+                    zIndex: 1000 + i, // Higher z-index for click detection
+                    clickable: true
+                });
+            }
+            
+            // Only add click listener to the innermost circle
+            if (i === 0 && circle) {
                 // Create info window for this neighborhood
                 const infoContent = createNeighborhoodInfoContent(neighborhood, placeType);
                 const infoWindow = new google.maps.InfoWindow({
@@ -1982,52 +2002,51 @@ async function createHeatmapLayer(placeType, recommendations) {
                 circle.center = center; // Store center (LatLng object) for overlap detection
                 
                 // Add to clickable circles cache for faster lookup
-        appState.clickableCircles.push(circle);
-        
-        // Add optimized click listener with throttling
-        let clickTimeout = null;
-        circle.addListener('click', (event) => {
-            if (clickTimeout) return;
-            clickTimeout = setTimeout(() => { clickTimeout = null; }, 100);
-            
-            let clickedLat, clickedLng;
-            if (event && event.latLng) {
-                clickedLat = event.latLng.lat();
-                clickedLng = event.latLng.lng();
-            } else if (circle.center) {
-                if (typeof circle.center.lat === 'function') {
-                    clickedLat = circle.center.lat();
-                    clickedLng = circle.center.lng();
-                } else {
-                    clickedLat = circle.center.lat;
-                    clickedLng = circle.center.lng;
-                }
-            } else {
-                return;
+                appState.clickableCircles.push(circle);
+                
+                // Add optimized click listener with throttling
+                let clickTimeout = null;
+                circle.addListener('click', (event) => {
+                    if (clickTimeout) return;
+                    clickTimeout = setTimeout(() => { clickTimeout = null; }, 100);
+                    
+                    let clickedLat, clickedLng;
+                    if (event && event.latLng) {
+                        clickedLat = event.latLng.lat();
+                        clickedLng = event.latLng.lng();
+                    } else if (circle.center) {
+                        if (typeof circle.center.lat === 'function') {
+                            clickedLat = circle.center.lat();
+                            clickedLng = circle.center.lng();
+                        } else {
+                            clickedLat = circle.center.lat;
+                            clickedLng = circle.center.lng;
+                        }
+                    } else {
+                        return;
+                    }
+                    
+                    const bounds = new google.maps.LatLngBounds();
+                    const buffer = circle.baseRadius * 1.5;
+                    const latOffset = buffer / 111000;
+                    const lngOffset = buffer / (111000 * Math.cos(clickedLat * Math.PI / 180));
+                    
+                    bounds.extend(new google.maps.LatLng(clickedLat - latOffset, clickedLng - lngOffset));
+                    bounds.extend(new google.maps.LatLng(clickedLat + latOffset, clickedLng + lngOffset));
+                    
+                    appState.map.fitBounds(bounds);
+                    
+                    const overlappingHotspots = findOverlappingHotspots(clickedLat, clickedLng);
+                    if (Object.keys(overlappingHotspots).length > 0) {
+                        showHotspotModal(clickedLat, clickedLng, overlappingHotspots);
+                    }
+                });
             }
             
-            const bounds = new google.maps.LatLngBounds();
-            const buffer = circle.baseRadius * 1.5;
-            const latOffset = buffer / 111000;
-            const lngOffset = buffer / (111000 * Math.cos(clickedLat * Math.PI / 180));
-            
-            bounds.extend(new google.maps.LatLng(clickedLat - latOffset, clickedLng - lngOffset));
-            bounds.extend(new google.maps.LatLng(clickedLat + latOffset, clickedLng + lngOffset));
-            
-            appState.map.fitBounds(bounds);
-            
-            const overlappingHotspots = findOverlappingHotspots(clickedLat, clickedLng);
-            if (Object.keys(overlappingHotspots).length > 0) {
-                showHotspotModal(clickedLat, clickedLng, overlappingHotspots);
+            if (circle) {
+                circlesToAdd.push(circle);
             }
-        });
-        
-        circle.baseRadius = baseRadius;
-        circle.neighborhoodData = neighborhood;
-        circle.placeType = placeType;
-        circle.center = center;
-        
-        circlesToAdd.push(circle);
+        }
     });
     
     // Batch add all circles to the map at once for better performance
