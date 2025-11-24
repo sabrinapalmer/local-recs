@@ -1416,9 +1416,9 @@ gmp-place-autocomplete input:focus {
 
 .rec-summary-content {
     display: flex;
-    gap: var(--spacing-sm);
-    font-size: 0.85rem;
-    color: var(--color-gray-600);
+    gap: var(--spacing-md);
+    font-size: 0.9rem;
+    color: var(--color-gray-700);
 }
 
 /* Collapsed state: horizontal layout (thumbnail left, info right) */
@@ -1440,6 +1440,7 @@ gmp-place-autocomplete input:focus {
 .rec-thumbnail-container {
     width: 80px;
     height: 80px;
+    flex-shrink: 0;
 }
 
 .rec-thumbnail {
@@ -1473,7 +1474,7 @@ gmp-place-autocomplete input:focus {
 .place-summary-expanded {
     display: flex;
     flex-direction: column;
-    gap: var(--spacing-sm);
+    gap: 6px;
     padding: var(--spacing-md);
     background: var(--color-gray-50);
     border-radius: var(--radius-md);
@@ -1481,33 +1482,39 @@ gmp-place-autocomplete input:focus {
 }
 
 .place-summary-item {
-    display: flex;
-    align-items: center;
-    gap: var(--spacing-sm);
     font-size: 0.9rem;
     color: var(--color-gray-700);
+    line-height: 1.4;
 }
 
-.place-summary-item strong {
+.place-summary-item:first-child {
+    font-size: 0.95rem;
     color: var(--color-gray-800);
-    min-width: 80px;
+    font-weight: 500;
 }
 
 .rec-summary-info-text {
     display: flex;
     flex-direction: column;
-    gap: 4px;
+    gap: 6px;
     flex: 1;
     min-width: 0;
 }
 
-.rec-summary-rating,
-.rec-summary-address,
-.rec-summary-price,
+.rec-summary-address {
+    font-size: 0.95rem;
+    color: var(--color-gray-800);
+    font-weight: 500;
+}
+
+.rec-summary-rating {
+    font-size: 0.85rem;
+    color: var(--color-gray-700);
+}
+
 .rec-summary-status {
-    display: flex;
-    align-items: center;
-    gap: 4px;
+    font-size: 0.85rem;
+    font-weight: 500;
 }
 
 .rec-expand-btn {

@@ -895,14 +895,11 @@ function showHotspotModal(lat, lng, overlappingHotspots) {
             content += `
                 <li class="hotspot-recommendation-item" data-place-id="${placeId || ''}" data-rec-id="${recId}" data-lat="${firstRec.latitude}" data-lng="${firstRec.longitude}" data-place-name="${escapeHtml(placeName)}">
                     <div class="rec-summary" id="${recId}-summary">
-                        <div class="rec-summary-info" id="${recId}-summary-info">
-                            <div class="rec-loading">Loading...</div>
-                        </div>
                         <div class="rec-header">
                             <strong class="rec-name">${escapeHtml(placeName)}</strong>${recCount}
                         </div>
-                        <div class="rec-details">
-                            <span class="rec-location">${escapeHtml(location)}</span>
+                        <div class="rec-summary-info" id="${recId}-summary-info">
+                            <div class="rec-loading">Loading...</div>
                         </div>
                         <div class="rec-expanded-details" id="${recId}-expanded-details" style="display: none;">
                             <!-- Expanded details will be inserted here -->
@@ -1098,7 +1095,7 @@ function updatePlaceSummary(recId, place) {
     // Horizontal layout for collapsed state: thumbnail on left, info on right
     let summaryHtml = '<div class="rec-summary-content rec-summary-collapsed">';
     
-    // Thumbnail photo on left (only when collapsed)
+    // Thumbnail photo on left (only when collapsed) - 80x80px square
     if (place.photos && place.photos.length > 0) {
         const photo = place.photos[0];
         const thumbnailUrl = photo.getUrl({ maxWidth: 150, maxHeight: 150 });
@@ -1111,6 +1108,12 @@ function updatePlaceSummary(recId, place) {
     
     summaryHtml += '<div class="rec-summary-info-text">';
     
+    // Address (shortened) - shown first
+    if (place.formatted_address) {
+        const shortAddress = place.formatted_address.split(',')[0]; // Just street address
+        summaryHtml += `<div class="rec-summary-address">${escapeHtml(shortAddress)}</div>`;
+    }
+    
     // Rating
     if (place.rating !== undefined) {
         const stars = '⭐'.repeat(Math.round(place.rating));
@@ -1120,24 +1123,13 @@ function updatePlaceSummary(recId, place) {
         summaryHtml += `<div class="rec-summary-rating">${ratingText}</div>`;
     }
     
-    // Address (shortened)
-    if (place.formatted_address) {
-        const shortAddress = place.formatted_address.split(',')[0]; // Just street address
-        summaryHtml += `<div class="rec-summary-address">📍 ${escapeHtml(shortAddress)}</div>`;
-    }
-    
-    // Price level
-    if (place.price_level !== undefined) {
-        const priceSymbols = '$'.repeat(place.price_level + 1);
-        summaryHtml += `<div class="rec-summary-price">💰 ${priceSymbols}</div>`;
-    }
-    
     // Opening status
     if (place.opening_hours) {
         const isOpen = place.opening_hours.isOpen ? place.opening_hours.isOpen() : null;
         if (isOpen !== null) {
-            const statusText = isOpen ? '<span style="color: #27ae60;">● Open now</span>' : '<span style="color: #e74c3c;">● Closed now</span>';
-            summaryHtml += `<div class="rec-summary-status">${statusText}</div>`;
+            const statusText = isOpen ? 'Open now' : 'Closed now';
+            const statusColor = isOpen ? '#27ae60' : '#e74c3c';
+            summaryHtml += `<div class="rec-summary-status" style="color: ${statusColor};">${statusText}</div>`;
         }
     }
     
