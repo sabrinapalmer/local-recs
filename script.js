@@ -721,7 +721,7 @@ function findOverlappingHotspots(lat, lng) {
 }
 
 /**
- * Show hotspot modal with all overlapping hotspots grouped by type
+ * Show hotspot modal with all overlapping hotspots in one unified view
  * @param {number} lat - Latitude
  * @param {number} lng - Longitude
  * @param {Object} overlappingHotspots - Object with place types as keys
@@ -733,124 +733,103 @@ function showHotspotModal(lat, lng, overlappingHotspots) {
     
     if (!modal || !modalBody) return;
     
-    // Count total recommendations
-    let totalRecommendations = 0;
+    // Collect all recommendations from all overlapping hotspots
+    const allRecommendations = [];
     const typeCounts = {};
     
     Object.keys(overlappingHotspots).forEach(placeType => {
         const typeData = overlappingHotspots[placeType];
         let typeCount = 0;
+        
         typeData.neighborhoods.forEach(neighborhood => {
-            typeCount += neighborhood.recommendations.length;
+            neighborhood.recommendations.forEach(rec => {
+                // Add place type to each recommendation for display
+                const recWithType = {
+                    ...rec,
+                    place_type: placeType
+                };
+                allRecommendations.push(recWithType);
+                typeCount++;
+            });
         });
+        
         typeCounts[placeType] = typeCount;
-        totalRecommendations += typeCount;
     });
+    
+    const totalRecommendations = allRecommendations.length;
     
     // Set title
     if (modalTitle) {
         modalTitle.textContent = `${totalRecommendations} Recommendation${totalRecommendations !== 1 ? 's' : ''} at This Location`;
     }
     
-    // Generate content
+    // Generate content - simple unified list
     let content = '<div class="hotspot-summary">';
     
-    // Summary by type
-    content += '<div class="hotspot-type-summary">';
-    Object.keys(overlappingHotspots).sort().forEach(placeType => {
-        const color = PLACE_TYPE_COLORS[placeType] || '#667eea';
-        const typeLabel = getPlaceTypeLabel(placeType);
-        const count = typeCounts[placeType];
-        content += `
-            <div class="hotspot-type-item">
-                <span class="hotspot-type-dot" style="background: ${color};"></span>
-                <span class="hotspot-type-label">${escapeHtml(typeLabel)}</span>
-                <span class="hotspot-type-count">${count}</span>
-            </div>
-        `;
-    });
-    content += '</div>';
-    
-    // Expandable sections by type
-    content += '<div class="hotspot-details">';
-    Object.keys(overlappingHotspots).sort().forEach(placeType => {
-        const typeData = overlappingHotspots[placeType];
-        const color = PLACE_TYPE_COLORS[placeType] || '#667eea';
-        const typeLabel = getPlaceTypeLabel(placeType);
-        const typeId = `hotspot-type-${placeType}`;
-        
-        // Collect all recommendations for this type
-        const allRecommendations = [];
-        typeData.neighborhoods.forEach(neighborhood => {
-            neighborhood.recommendations.forEach(rec => {
-                allRecommendations.push(rec);
-            });
-        });
-        
-        content += `
-            <div class="hotspot-type-section">
-                <button class="hotspot-type-header" onclick="toggleHotspotType('${typeId}')">
-                    <span class="hotspot-type-dot" style="background: ${color};"></span>
-                    <span class="hotspot-type-name">${escapeHtml(typeLabel)}</span>
-                    <span class="hotspot-type-count-badge">${allRecommendations.length}</span>
-                    <span class="hotspot-type-arrow" id="${typeId}-arrow">▼</span>
-                </button>
-                <div class="hotspot-type-content" id="${typeId}-content" style="display: none;">
-                    <ul class="hotspot-recommendations-list">
-        `;
-        
-        // Group by place name
-        const byPlace = {};
-        allRecommendations.forEach(rec => {
-            const key = rec.place_name || rec.location_name || 'Unknown';
-            if (!byPlace[key]) {
-                byPlace[key] = [];
-            }
-            byPlace[key].push(rec);
-        });
-        
-        Object.keys(byPlace).sort().forEach(placeName => {
-            const recs = byPlace[placeName];
-            const count = recs.length > 1 ? ` <span class="rec-count">(${recs.length})</span>` : '';
-            const location = recs[0].location_name || 'Unknown location';
+    // Summary by type at top
+    if (Object.keys(typeCounts).length > 1) {
+        content += '<div class="hotspot-type-summary">';
+        Object.keys(typeCounts).sort().forEach(placeType => {
+            const color = PLACE_TYPE_COLORS[placeType] || '#667eea';
+            const typeLabel = getPlaceTypeLabel(placeType);
+            const count = typeCounts[placeType];
             content += `
-                <li class="hotspot-recommendation-item">
-                    <strong>${escapeHtml(placeName)}</strong>${count}
-                    <div class="rec-location">${escapeHtml(location)}</div>
-                </li>
+                <div class="hotspot-type-item">
+                    <span class="hotspot-type-dot" style="background: ${color};"></span>
+                    <span class="hotspot-type-label">${escapeHtml(typeLabel)}</span>
+                    <span class="hotspot-type-count">${count}</span>
+                </div>
             `;
         });
+        content += '</div>';
+    }
+    
+    // All recommendations in one list, grouped by place name
+    content += '<div class="hotspot-recommendations">';
+    content += '<h3 class="hotspot-recommendations-title">Recommendations</h3>';
+    content += '<ul class="hotspot-recommendations-list">';
+    
+    // Group by place name
+    const byPlace = {};
+    allRecommendations.forEach(rec => {
+        const key = rec.place_name || rec.location_name || 'Unknown';
+        if (!byPlace[key]) {
+            byPlace[key] = [];
+        }
+        byPlace[key].push(rec);
+    });
+    
+    // Sort by place name and display
+    Object.keys(byPlace).sort().forEach(placeName => {
+        const recs = byPlace[placeName];
+        const firstRec = recs[0];
+        const location = firstRec.location_name || 'Unknown location';
+        const placeType = firstRec.place_type;
+        const color = PLACE_TYPE_COLORS[placeType] || '#667eea';
+        const typeLabel = getPlaceTypeLabel(placeType);
+        const count = recs.length > 1 ? ` <span class="rec-count">(${recs.length})</span>` : '';
         
         content += `
-                    </ul>
+            <li class="hotspot-recommendation-item">
+                <div class="rec-header">
+                    <span class="rec-type-dot" style="background: ${color};"></span>
+                    <strong class="rec-name">${escapeHtml(placeName)}</strong>${count}
                 </div>
-            </div>
+                <div class="rec-details">
+                    <span class="rec-type">${escapeHtml(typeLabel)}</span>
+                    <span class="rec-separator">•</span>
+                    <span class="rec-location">${escapeHtml(location)}</span>
+                </div>
+            </li>
         `;
     });
-    content += '</div></div>';
+    
+    content += '</ul></div></div>';
     
     modalBody.innerHTML = content;
     modal.style.display = 'flex';
 }
 
-/**
- * Toggle hotspot type section (called from onclick in generated HTML)
- * @param {string} typeId - Type ID
- */
-window.toggleHotspotType = function(typeId) {
-    const content = document.getElementById(`${typeId}-content`);
-    const arrow = document.getElementById(`${typeId}-arrow`);
-    
-    if (content && arrow) {
-        if (content.style.display === 'none') {
-            content.style.display = 'block';
-            arrow.textContent = '▲';
-        } else {
-            content.style.display = 'none';
-            arrow.textContent = '▼';
-        }
-    }
-};
 
 /**
  * Create info window content for neighborhood hotspot

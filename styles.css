@@ -1244,61 +1244,15 @@ gmp-place-autocomplete input:focus {
     font-size: 0.9rem;
 }
 
-.hotspot-details {
-    display: flex;
-    flex-direction: column;
-    gap: var(--spacing-md);
+.hotspot-recommendations {
+    margin-top: var(--spacing-lg);
 }
 
-.hotspot-type-section {
-    border: 1px solid var(--color-gray-200);
-    border-radius: var(--radius-md);
-    overflow: hidden;
-}
-
-.hotspot-type-header {
-    width: 100%;
-    display: flex;
-    align-items: center;
-    gap: var(--spacing-sm);
-    padding: var(--spacing-md);
-    background: white;
-    border: none;
-    cursor: pointer;
-    text-align: left;
-    transition: background 0.2s ease;
-    font-size: 1rem;
-}
-
-.hotspot-type-header:hover {
-    background: var(--color-gray-50);
-}
-
-.hotspot-type-name {
-    flex: 1;
+.hotspot-recommendations-title {
+    margin: 0 0 var(--spacing-md) 0;
+    font-size: 1.1rem;
     font-weight: 600;
     color: var(--color-gray-800);
-}
-
-.hotspot-type-count-badge {
-    background: var(--color-gray-200);
-    color: var(--color-gray-700);
-    padding: 2px 8px;
-    border-radius: 12px;
-    font-size: 0.85rem;
-    font-weight: 600;
-}
-
-.hotspot-type-arrow {
-    color: var(--color-gray-600);
-    font-size: 0.8rem;
-    transition: transform 0.2s ease;
-}
-
-.hotspot-type-content {
-    padding: var(--spacing-md);
-    background: var(--color-gray-50);
-    border-top: 1px solid var(--color-gray-200);
 }
 
 .hotspot-recommendations-list {
@@ -1311,15 +1265,36 @@ gmp-place-autocomplete input:focus {
 }
 
 .hotspot-recommendation-item {
-    padding: var(--spacing-sm);
+    padding: var(--spacing-md);
     background: white;
-    border-radius: var(--radius-sm);
+    border-radius: var(--radius-md);
     border: 1px solid var(--color-gray-200);
+    margin-bottom: var(--spacing-sm);
+    transition: box-shadow 0.2s ease;
 }
 
-.hotspot-recommendation-item strong {
+.hotspot-recommendation-item:hover {
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.rec-header {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-sm);
+    margin-bottom: var(--spacing-xs);
+}
+
+.rec-type-dot {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    flex-shrink: 0;
+}
+
+.rec-name {
     color: var(--color-gray-800);
-    font-size: 0.95rem;
+    font-size: 1rem;
+    font-weight: 600;
 }
 
 .rec-count {
@@ -1328,10 +1303,25 @@ gmp-place-autocomplete input:focus {
     font-size: 0.85rem;
 }
 
+.rec-details {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-xs);
+    margin-top: var(--spacing-xs);
+    font-size: 0.85rem;
+    color: var(--color-gray-600);
+}
+
+.rec-type {
+    font-weight: 500;
+}
+
+.rec-separator {
+    color: var(--color-gray-400);
+}
+
 .rec-location {
     color: var(--color-gray-600);
-    font-size: 0.85rem;
-    margin-top: 4px;
 }
 
 @media (max-width: 768px) {
