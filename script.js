@@ -1495,9 +1495,9 @@ function fetchPlaceDetails(placeId) {
  * @returns {string} HTML string
  */
 function formatExpandedDetails(place, recId) {
-    let html = '<div class="place-details-content">';
+    let html = '<div class="place-expanded-content">';
     
-    // Photo carousel (only show if multiple photos)
+    // 1. Large photo carousel at top (replaces thumbnail when expanded)
     if (place.photos && place.photos.length > 0) {
         const photos = place.photos.slice(0, 5); // Limit to 5 photos
         const photoUrls = photos.map((photo, index) => ({
@@ -1518,6 +1518,44 @@ function formatExpandedDetails(place, recId) {
             </div>
         `;
     }
+    
+    // 2. Summary info (same info that was in collapsed view) - shown at top after photo
+    html += '<div class="place-summary-expanded">';
+    
+    // Rating
+    if (place.rating !== undefined) {
+        const stars = '⭐'.repeat(Math.round(place.rating));
+        const ratingText = place.user_ratings_total 
+            ? `${place.rating.toFixed(1)} ${stars} (${place.user_ratings_total.toLocaleString()} reviews)`
+            : `${place.rating.toFixed(1)} ${stars}`;
+        html += `<div class="place-summary-item"><strong>Rating:</strong> ${ratingText}</div>`;
+    }
+    
+    // Address (shortened)
+    if (place.formatted_address) {
+        const shortAddress = place.formatted_address.split(',')[0]; // Just street address
+        html += `<div class="place-summary-item"><strong>📍 Address:</strong> ${escapeHtml(shortAddress)}</div>`;
+    }
+    
+    // Price level
+    if (place.price_level !== undefined) {
+        const priceSymbols = '$'.repeat(place.price_level + 1);
+        html += `<div class="place-summary-item"><strong>💰 Price:</strong> ${priceSymbols}</div>`;
+    }
+    
+    // Opening status
+    if (place.opening_hours) {
+        const isOpen = place.opening_hours.isOpen ? place.opening_hours.isOpen() : null;
+        if (isOpen !== null) {
+            const statusText = isOpen ? '<span style="color: #27ae60;">● Open now</span>' : '<span style="color: #e74c3c;">● Closed now</span>';
+            html += `<div class="place-summary-item"><strong>Status:</strong> ${statusText}</div>`;
+        }
+    }
+    
+    html += '</div>';
+    
+    // 3. Additional details (new information not in summary)
+    html += '<div class="place-additional-details">';
     
     // Full Address (if different from shortened)
     if (place.formatted_address) {
@@ -1543,7 +1581,7 @@ function formatExpandedDetails(place, recId) {
         `;
     }
     
-    // Opening Hours
+    // Opening Hours (full schedule)
     if (place.opening_hours && place.opening_hours.weekday_text) {
         html += `
             <div class="place-info-row">
@@ -1551,25 +1589,6 @@ function formatExpandedDetails(place, recId) {
                 <div class="place-hours">
                     ${place.opening_hours.weekday_text.map(day => `<div>${escapeHtml(day)}</div>`).join('')}
                 </div>
-            </div>
-        `;
-    } else if (place.opening_hours) {
-        const isOpen = place.opening_hours.isOpen() ? 'Open now' : 'Closed now';
-        html += `
-            <div class="place-info-row">
-                <strong>🕐 Status:</strong>
-                <span>${isOpen}</span>
-            </div>
-        `;
-    }
-    
-    // Price Level
-    if (place.price_level !== undefined) {
-        const priceSymbols = '$'.repeat(place.price_level + 1);
-        html += `
-            <div class="place-info-row">
-                <strong>💰 Price:</strong>
-                <span>${priceSymbols}</span>
             </div>
         `;
     }
@@ -1593,7 +1612,7 @@ function formatExpandedDetails(place, recId) {
         `;
     }
     
-    html += '</div>';
+    html += '</div></div>';
     return html;
 }
 
