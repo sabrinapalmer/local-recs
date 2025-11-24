@@ -1877,6 +1877,7 @@ function createHalftoneCircleOverlayClass() {
         }
         this.div = null;
     }
+    }
     
     return HalftoneCircleOverlay;
 }
