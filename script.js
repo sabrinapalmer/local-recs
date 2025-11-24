@@ -1489,12 +1489,12 @@ function fetchPlaceDetails(placeId) {
 }
 
 /**
- * Format place details for display
+ * Format expanded details for display - large photo carousel at top, then details
  * @param {Object} place - Google Places API place object
  * @param {string} recId - Recommendation ID for carousel
  * @returns {string} HTML string
  */
-function formatPlaceDetails(place, recId) {
+function formatExpandedDetails(place, recId) {
     let html = '<div class="place-details-content">';
     
     // Photo carousel (only show if multiple photos)
