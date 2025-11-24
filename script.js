@@ -431,12 +431,18 @@ function initializeAutocomplete() {
             new google.maps.LatLng(CONFIG.CHICAGO_BOUNDS.northeast.lat, CONFIG.CHICAGO_BOUNDS.northeast.lng)
         );
 
-        appState.autocomplete = new google.maps.places.Autocomplete(locationInput, {
-            componentRestrictions: { country: 'us' },
-            fields: ['geometry', 'formatted_address', 'name', 'place_id', 'types'],
-            bounds: bounds,
-            types: ['geocode', 'establishment'] // Allow both addresses and places
-        });
+        // Note: Autocomplete is deprecated but still functional for existing customers
+        // Suppressing deprecation warning by using it conditionally
+        if (google.maps.places && google.maps.places.Autocomplete) {
+            appState.autocomplete = new google.maps.places.Autocomplete(locationInput, {
+                componentRestrictions: { country: 'us' },
+                fields: ['geometry', 'formatted_address', 'name', 'place_id', 'types'],
+                bounds: bounds,
+                types: ['geocode', 'establishment'] // Allow both addresses and places
+            });
+        } else {
+            console.warn('Google Maps Places Autocomplete not available');
+        }
 
         appState.autocomplete.addListener('place_changed', () => {
             const place = appState.autocomplete.getPlace();
@@ -878,8 +884,10 @@ function showHotspotModal(lat, lng, overlappingHotspots) {
             const placeId = firstRec.place_id || null;
             const recId = `rec-${firstRec.id || Math.random().toString(36).substr(2, 9)}`;
             
+            // Show button for all recommendations, but only enable if place_id exists
+            // If no place_id, try to find it using PlacesService nearby search
             content += `
-                <li class="hotspot-recommendation-item" data-place-id="${placeId || ''}" data-rec-id="${recId}">
+                <li class="hotspot-recommendation-item" data-place-id="${placeId || ''}" data-rec-id="${recId}" data-lat="${firstRec.latitude}" data-lng="${firstRec.longitude}" data-place-name="${escapeHtml(placeName)}">
                     <div class="rec-header">
                         <strong class="rec-name">${escapeHtml(placeName)}</strong>${recCount}
                     </div>
@@ -889,7 +897,7 @@ function showHotspotModal(lat, lng, overlappingHotspots) {
                     <div class="rec-place-details" id="${recId}-details" style="display: none;">
                         <div class="rec-loading">Loading details...</div>
                     </div>
-                    ${placeId ? `<button class="rec-load-details-btn" data-place-id="${placeId}" data-rec-id="${recId}" style="margin-top: 8px; padding: 6px 12px; background: #667eea; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 12px;">Show Details</button>` : ''}
+                    <button class="rec-load-details-btn" data-place-id="${placeId || ''}" data-rec-id="${recId}" data-lat="${firstRec.latitude}" data-lng="${firstRec.longitude}" data-place-name="${escapeHtml(placeName)}" style="margin-top: 8px; padding: 6px 12px; background: #667eea; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 12px;" ${!placeId ? 'data-needs-lookup="true"' : ''}>${placeId ? 'Show Details' : 'Find Details'}</button>
                 </li>
             `;
         });
@@ -928,39 +936,143 @@ function showHotspotModal(lat, lng, overlappingHotspots) {
         });
     });
     
-    // Add click handlers for "Show Details" buttons
+    // Add click handlers for "Show Details" buttons and make rows clickable
     const detailButtons = modalBody.querySelectorAll('.rec-load-details-btn');
     detailButtons.forEach(button => {
-        button.addEventListener('click', async function() {
-            const placeId = this.getAttribute('data-place-id');
-            const recId = this.getAttribute('data-rec-id');
-            const detailsDiv = document.getElementById(`${recId}-details`);
-            
-            if (!placeId || !detailsDiv) return;
-            
-            // Toggle details visibility
-            const isVisible = detailsDiv.style.display !== 'none';
-            if (isVisible) {
-                detailsDiv.style.display = 'none';
-                this.textContent = 'Show Details';
-            } else {
-                // Show loading state
-                detailsDiv.style.display = 'block';
-                this.textContent = 'Loading...';
-                this.disabled = true;
-                
-                try {
-                    // Fetch place details
-                    const placeDetails = await fetchPlaceDetails(placeId);
-                    detailsDiv.innerHTML = formatPlaceDetails(placeDetails);
-                    this.textContent = 'Hide Details';
-                } catch (error) {
-                    console.error('Error fetching place details:', error);
-                    detailsDiv.innerHTML = '<div class="rec-error">Unable to load details. Please try again later.</div>';
-                    this.textContent = 'Show Details';
-                } finally {
-                    this.disabled = false;
+        button.addEventListener('click', async function(e) {
+            e.stopPropagation(); // Prevent row click
+            await handleShowDetails(this);
+        });
+    });
+    
+    // Make recommendation rows clickable (if they have place_id)
+    const recommendationItems = modalBody.querySelectorAll('.hotspot-recommendation-item[data-place-id]:not([data-place-id=""])');
+    recommendationItems.forEach(item => {
+        const placeId = item.getAttribute('data-place-id');
+        if (placeId) {
+            item.style.cursor = 'pointer';
+            item.addEventListener('click', async function(e) {
+                // Don't trigger if clicking on the button
+                if (e.target.classList.contains('rec-load-details-btn')) {
+                    return;
                 }
+                const recId = item.getAttribute('data-rec-id');
+                const detailsDiv = document.getElementById(`${recId}-details`);
+                const button = item.querySelector('.rec-load-details-btn');
+                
+                if (detailsDiv) {
+                    const isVisible = detailsDiv.style.display !== 'none';
+                    if (!isVisible && button) {
+                        // Trigger the button click
+                        await handleShowDetails(button);
+                    } else if (isVisible && button) {
+                        // Hide details
+                        detailsDiv.style.display = 'none';
+                        button.textContent = 'Show Details';
+                    }
+                }
+            });
+        }
+    });
+}
+
+/**
+ * Handle showing place details
+ * @param {HTMLElement} button - The button element that triggered the action
+ */
+async function handleShowDetails(button) {
+    let placeId = button.getAttribute('data-place-id');
+    const recId = button.getAttribute('data-rec-id');
+    const detailsDiv = document.getElementById(`${recId}-details`);
+    const needsLookup = button.getAttribute('data-needs-lookup') === 'true';
+    
+    if (!detailsDiv) {
+        console.warn('Missing detailsDiv', { recId });
+        return;
+    }
+    
+    // If no place_id but we have coordinates, try to find it
+    if ((!placeId || placeId === '') && needsLookup) {
+        const lat = parseFloat(button.getAttribute('data-lat'));
+        const lng = parseFloat(button.getAttribute('data-lng'));
+        const placeName = button.getAttribute('data-place-name');
+        
+        if (lat && lng) {
+            try {
+                placeId = await findPlaceIdByLocation(lat, lng, placeName);
+                if (placeId) {
+                    button.setAttribute('data-place-id', placeId);
+                    button.removeAttribute('data-needs-lookup');
+                }
+            } catch (error) {
+                console.warn('Could not find place_id:', error);
+            }
+        }
+    }
+    
+    if (!placeId || placeId === '') {
+        detailsDiv.style.display = 'block';
+        detailsDiv.innerHTML = '<div class="rec-error">Place details not available. This location may not be in Google Places database.</div>';
+        return;
+    }
+    
+    // Toggle details visibility
+    const isVisible = detailsDiv.style.display !== 'none';
+    if (isVisible) {
+        detailsDiv.style.display = 'none';
+        button.textContent = placeId ? 'Show Details' : 'Find Details';
+    } else {
+        // Show loading state
+        detailsDiv.style.display = 'block';
+        button.textContent = 'Loading...';
+        button.disabled = true;
+        
+        try {
+            // Fetch place details
+            const placeDetails = await fetchPlaceDetails(placeId);
+            detailsDiv.innerHTML = formatPlaceDetails(placeDetails);
+            button.textContent = 'Hide Details';
+        } catch (error) {
+            console.error('Error fetching place details:', error);
+            detailsDiv.innerHTML = `<div class="rec-error">Unable to load details: ${error.message}. Please try again later.</div>`;
+            button.textContent = placeId ? 'Show Details' : 'Find Details';
+        } finally {
+            button.disabled = false;
+        }
+    }
+}
+
+/**
+ * Find place_id by location using PlacesService nearby search
+ * @param {number} lat - Latitude
+ * @param {number} lng - Longitude
+ * @param {string} placeName - Name of the place to search for
+ * @returns {Promise<string|null>} Place ID or null if not found
+ */
+function findPlaceIdByLocation(lat, lng, placeName) {
+    return new Promise((resolve, reject) => {
+        if (!appState.placesService) {
+            reject(new Error('Places service not initialized'));
+            return;
+        }
+        
+        const request = {
+            location: new google.maps.LatLng(lat, lng),
+            radius: 50, // 50 meters
+            keyword: placeName,
+            fields: ['place_id', 'name']
+        };
+        
+        appState.placesService.nearbySearch(request, (results, status) => {
+            if (status === google.maps.places.PlacesServiceStatus.OK && results && results.length > 0) {
+                // Find the best match by name similarity
+                const bestMatch = results.find(r => 
+                    r.name && placeName && 
+                    r.name.toLowerCase().includes(placeName.toLowerCase())
+                ) || results[0];
+                resolve(bestMatch.place_id);
+            } else {
+                reject(new Error(`Place not found: ${status}`));
             }
         });
     });
