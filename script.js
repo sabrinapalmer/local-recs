@@ -1961,6 +1961,54 @@ function createHotspotLabelOverlayClass() {
 let HotspotLabelOverlay = null;
 
 /**
+ * Hotspot label helpers
+ */
+function ensureHotspotLabelOverlayClass() {
+    if (!HotspotLabelOverlay && typeof google !== 'undefined' && google.maps && google.maps.OverlayView) {
+        HotspotLabelOverlay = createHotspotLabelOverlayClass();
+    }
+}
+
+function showHotspotLabel(circle) {
+    ensureHotspotLabelOverlayClass();
+    if (!HotspotLabelOverlay || !circle || !circle.center || circle.hotspotLabel) return;
+    
+    const neighborhood = circle.neighborhoodData;
+    if (!neighborhood) return;
+    
+    const center = typeof circle.center.lat === 'function'
+        ? circle.center
+        : new google.maps.LatLng(circle.center.lat, circle.center.lng);
+    
+    const labelOverlay = new HotspotLabelOverlay(center, {
+        title: neighborhood.name,
+        meta: `${neighborhood.count} • ${getPlaceTypeLabel(circle.placeType)}`
+    });
+    labelOverlay.setMap(appState.map);
+    circle.hotspotLabel = labelOverlay;
+    
+    if (!appState.hotspotLabelOverlays) {
+        appState.hotspotLabelOverlays = [];
+    }
+    appState.hotspotLabelOverlays.push(labelOverlay);
+}
+
+function hideHotspotLabel(circle) {
+    if (!circle || !circle.hotspotLabel) return;
+    try {
+        circle.hotspotLabel.setMap(null);
+    } catch (err) {
+        console.warn('Error removing hotspot label:', err);
+    }
+    if (appState.hotspotLabelOverlays && circle.hotspotLabel) {
+        appState.hotspotLabelOverlays = appState.hotspotLabelOverlays.filter(
+            overlay => overlay !== circle.hotspotLabel
+        );
+    }
+    circle.hotspotLabel = null;
+}
+
+/**
  * Create visual heatmap effect using neighborhood-based circles with blur effect
  * Each hotspot is positioned based ONLY on recommendations of this specific type in that neighborhood
  * Optimized for faster rendering with batched circle creation
@@ -2000,18 +2048,17 @@ async function createHeatmapLayer(placeType, recommendations) {
             // If all neighborhoods have the same count, use middle size
             linearScale = 0.5;
         }
-        // Map to radius range: 80m (min) to 270m (max) for clearer neighborhoods
-        const baseRadius = 80 + (linearScale * 190); // Linear: 80m to 270m range
+        // Map to radius range: 60m (min) to 200m (max) for tighter, non-overlapping hotspots
+        const baseRadius = 60 + (linearScale * 140); // Linear: 60m to 200m range
         const center = new google.maps.LatLng(
             neighborhood.center.lat,
             neighborhood.center.lng
         );
-        const typeLabel = getPlaceTypeLabel(placeType);
         
         // Create multiple overlapping circles with smooth gradient fade for blur effect
         // Use fewer layers and smaller step to keep circles crisp
-        const blurLayers = 6;
-        const blurStep = baseRadius * 0.05;
+        const blurLayers = 5;
+        const blurStep = baseRadius * 0.04;
         
         // Create blur layers (outer to inner) with Gaussian-like smooth opacity gradient
         for (let i = blurLayers - 1; i >= 0; i--) {
@@ -2023,7 +2070,7 @@ async function createHeatmapLayer(placeType, recommendations) {
             const sigma = 0.3; // Lower sigma for a tighter fade
             const gaussian = Math.exp(-Math.pow(distanceFromCenter, 2) / (2 * Math.pow(sigma, 2)));
             // Apply smooth gradient with slightly lower max opacity to avoid fuzziness
-            const layerOpacity = gaussian * 0.35;
+            const layerOpacity = gaussian * 0.55;
             
             // Create halftone overlay for visual effect (all layers)
             // Ensure HalftoneCircleOverlay class is available
@@ -2036,7 +2083,7 @@ async function createHeatmapLayer(placeType, recommendations) {
                     center,
                     layerRadius,
                     color,
-                    layerOpacity * 0.35 * (1 - i * 0.15) // Lower opacity for prettier blending, fade for outer layers
+                    layerOpacity * (1 - i * 0.1) // Richer color with slight fade
                 );
                 halftoneOverlay.setMap(appState.map);
                 
@@ -2118,6 +2165,10 @@ async function createHeatmapLayer(placeType, recommendations) {
                         showHotspotModal(clickedLat, clickedLng, overlappingHotspots);
                     }
                 });
+                
+                // Show label on hover for better readability
+                circle.addListener('mouseover', () => showHotspotLabel(circle));
+                circle.addListener('mouseout', () => hideHotspotLabel(circle));
             }
             
             if (circle) {
@@ -2125,18 +2176,7 @@ async function createHeatmapLayer(placeType, recommendations) {
             }
         }
         
-        // Add informative label above hotspot
-        if (!HotspotLabelOverlay && typeof google !== 'undefined' && google.maps && google.maps.OverlayView) {
-            HotspotLabelOverlay = createHotspotLabelOverlayClass();
-        }
-        if (HotspotLabelOverlay) {
-            const labelOverlay = new HotspotLabelOverlay(center, {
-                title: neighborhood.name,
-                meta: `${neighborhood.count} • ${typeLabel}`
-            });
-            labelOverlay.setMap(appState.map);
-            appState.hotspotLabelOverlays.push(labelOverlay);
-        }
+        // Labels are shown on hover via circle listeners
     });
     
     // Batch add all circles to the map at once for better performance
