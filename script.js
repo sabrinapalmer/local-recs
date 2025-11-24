@@ -1160,13 +1160,13 @@ async function loadAllPlaceDetails(modalBody) {
         const lat = parseFloat(item.getAttribute('data-lat'));
         const lng = parseFloat(item.getAttribute('data-lng'));
         const placeName = item.getAttribute('data-place-name');
-        const detailsDiv = document.getElementById(`${recId}-details`);
+        const expandedDetailsDiv = document.getElementById(`${recId}-expanded-details`);
         
-        if (!detailsDiv) return;
+        if (!expandedDetailsDiv) return;
         
         // Keep details hidden by default (will show when clicked)
-        detailsDiv.style.display = 'none';
-        detailsDiv.innerHTML = '<div class="rec-loading">Loading details...</div>';
+        expandedDetailsDiv.style.display = 'none';
+        expandedDetailsDiv.innerHTML = '<div class="rec-loading">Loading details...</div>';
         
         // Create promise for this item
         const detailPromise = (async () => {
@@ -1202,8 +1202,10 @@ async function loadAllPlaceDetails(modalBody) {
                         // Update summary with key info
                         updatePlaceSummary(recId, placeDetails);
                         
-                        // Store full details for expansion
-                        detailsDiv.innerHTML = formatPlaceDetails(placeDetails, recId);
+                        // Store expanded details (without photo since it's already in summary)
+                        expandedDetailsDiv.innerHTML = formatExpandedDetails(placeDetails, recId);
+                        
+                        // Initialize photo carousel if it exists
                         initializePhotoCarousel(recId, placeDetails);
                     } catch (error) {
                         console.error(`Error fetching place details for ${placeName} (place_id: ${placeId}):`, error);
@@ -1211,7 +1213,7 @@ async function loadAllPlaceDetails(modalBody) {
                         if (summaryInfo) {
                             summaryInfo.innerHTML = `<div class="rec-error-small">Details unavailable</div>`;
                         }
-                        detailsDiv.innerHTML = `<div class="rec-error">Unable to load details: ${error.message}</div>`;
+                        expandedDetailsDiv.innerHTML = `<div class="rec-error">Unable to load details: ${error.message}</div>`;
                     }
                 } else {
                     // No place_id available - try text search as fallback
