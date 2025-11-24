@@ -62,19 +62,11 @@ function initializeDatabase() {
                     // Add place_id column if it doesn't exist (for existing databases)
                     db.run(`ALTER TABLE recommendations ADD COLUMN place_id TEXT`, (alterErr) => {
                         // Ignore error if column already exists
-                        if (alterErr && !alterErr.message.includes('duplicate column')) {
+                        if (alterErr && !alterErr.message.includes('duplicate column') && !alterErr.message.includes('duplicate column name')) {
                             console.warn('Note: place_id column may already exist:', alterErr.message);
                         }
                         resolve(db);
                     });
-                }
-            });
-                if (err) {
-                    console.error('Error creating table:', err.message);
-                    reject(err);
-                } else {
-                    console.log('Database table ready');
-                    resolve(db);
                 }
             });
         });
