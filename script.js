@@ -722,9 +722,23 @@ function findOverlappingHotspots(lat, lng) {
     for (let i = 0; i < circlesToCheck.length; i++) {
         const circle = circlesToCheck[i];
         
+        // Get center coordinates - handle both LatLng object and plain object
+        let centerLat, centerLng;
+        if (circle.center) {
+            if (typeof circle.center.lat === 'function') {
+                centerLat = circle.center.lat();
+                centerLng = circle.center.lng();
+            } else {
+                centerLat = circle.center.lat;
+                centerLng = circle.center.lng;
+            }
+        } else {
+            continue; // Skip if no center
+        }
+        
         // Quick bounds check first (approximate, faster than full distance calculation)
-        const latDiff = Math.abs(lat - circle.center.lat);
-        const lngDiff = Math.abs(lng - circle.center.lng);
+        const latDiff = Math.abs(lat - centerLat);
+        const lngDiff = Math.abs(lng - centerLng);
         const maxRadius = circle.baseRadius * tolerance;
         
         // Skip if clearly outside bounds (quick rejection)
@@ -733,7 +747,7 @@ function findOverlappingHotspots(lat, lng) {
         }
         
         // Calculate exact distance only if within approximate bounds
-        const distance = calculateDistance(lat, lng, circle.center.lat, circle.center.lng);
+        const distance = calculateDistance(lat, lng, centerLat, centerLng);
         
         if (distance <= maxRadius) {
             const placeType = circle.placeType;
@@ -994,6 +1008,12 @@ async function createHeatmapLayer(placeType, recommendations) {
             // Apply smooth gradient with max opacity of 0.6 for better visibility
             const layerOpacity = gaussian * 0.6;
             
+            // Ensure center is a proper LatLng object
+            const center = new google.maps.LatLng(
+                neighborhood.center.lat,
+                neighborhood.center.lng
+            );
+            
             const circle = new google.maps.Circle({
                 strokeColor: 'transparent', // Explicitly transparent to avoid any dark edges
                 strokeOpacity: 0, // No stroke/edges
@@ -1001,7 +1021,7 @@ async function createHeatmapLayer(placeType, recommendations) {
                 fillColor: color,
                 fillOpacity: layerOpacity,
                 map: appState.map,
-                center: neighborhood.center, // Center based on weighted average of THIS TYPE's recommendations only
+                center: center, // Use proper LatLng object
                 radius: layerRadius,
                 zIndex: 1 + i, // Outer layers behind inner layers
                 clickable: i === 0 // Only innermost circle is clickable
@@ -1019,7 +1039,7 @@ async function createHeatmapLayer(placeType, recommendations) {
                 circle.neighborhoodData = neighborhood;
                 circle.placeType = placeType; // Store place type for finding overlaps
                 circle.baseRadius = baseRadius; // Store base radius for overlap detection
-                circle.center = neighborhood.center; // Store center for overlap detection
+                circle.center = center; // Store center (LatLng object) for overlap detection
                 
                 // Add to clickable circles cache for faster lookup
                 appState.clickableCircles.push(circle);

@@ -110,7 +110,7 @@ function initializeAds() {
     }
     
     // Wait for AdSense script to load
-    function tryInitialize() {
+    async function tryInitialize() {
         if (typeof adsbygoogle === 'undefined') {
             console.log('Waiting for AdSense script to load...');
             setTimeout(tryInitialize, 500);
@@ -124,17 +124,22 @@ function initializeAds() {
             const showTwoAds = screenHeight >= 1200;
             
             // Get visible ad elements based on screen height
+            // IMPORTANT: Show/hide units BEFORE getting elements to ensure they have width
             let adElements;
             if (showTwoAds) {
                 // Show top and bottom ads, hide single ad
-                adElements = document.querySelectorAll('.ad-unit-top .adsbygoogle, .ad-unit-bottom .adsbygoogle');
                 document.querySelectorAll('.ad-unit-single').forEach(el => el.style.display = 'none');
                 document.querySelectorAll('.ad-unit-top, .ad-unit-bottom').forEach(el => el.style.display = 'flex');
+                // Wait a moment for display to take effect so ads have width
+                await new Promise(resolve => setTimeout(resolve, 100));
+                adElements = document.querySelectorAll('.ad-unit-top .adsbygoogle, .ad-unit-bottom .adsbygoogle');
             } else {
                 // Show single ad, hide top and bottom ads
-                adElements = document.querySelectorAll('.ad-unit-single .adsbygoogle');
                 document.querySelectorAll('.ad-unit-top, .ad-unit-bottom').forEach(el => el.style.display = 'none');
                 document.querySelectorAll('.ad-unit-single').forEach(el => el.style.display = 'flex');
+                // Wait a moment for display to take effect so ads have width
+                await new Promise(resolve => setTimeout(resolve, 100));
+                adElements = document.querySelectorAll('.ad-unit-single .adsbygoogle');
             }
             
             if (adElements.length === 0) {
@@ -147,6 +152,12 @@ function initializeAds() {
                 const status = element.getAttribute('data-adsbygoogle-status');
                 if (status === 'done' || status === 'filled' || status === 'unfilled') {
                     return; // Already initialized
+                }
+                
+                // Skip if element is not visible (has no width)
+                if (element.offsetWidth === 0) {
+                    console.warn('Skipping ad element with no width');
+                    return;
                 }
                 
             // Ad client and slot are already set in HTML, just verify they're correct
