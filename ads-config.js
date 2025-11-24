@@ -209,8 +209,8 @@ function showDemoAds() {
     const placeholders = document.querySelectorAll('.ad-placeholder');
     placeholders.forEach(placeholder => {
         placeholder.style.display = 'block';
-        // Use window height with margins on all sides
-        const margin = 20; // 20px margin on all sides
+        // Use full window height with minimal margins - closer to edges
+        const margin = 5; // 5px margin on all sides (reduced from 20px)
         const adHeight = `calc(100vh - ${margin * 2}px)`;
         placeholder.innerHTML = `
             <div style="width: calc(100% - ${margin * 2}px); max-width: calc(60px - ${margin * 2}px); 

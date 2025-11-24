@@ -778,8 +778,8 @@ async function createHeatmapLayer(placeType, recommendations) {
             // If all neighborhoods have the same count, use middle size
             linearScale = 0.5;
         }
-        // Map to radius range: 50m (min) to 500m (max)
-        const baseRadius = 50 + (linearScale * 450); // Linear: 50m to 500m range
+        // Map to radius range: 120m (min) to 500m (max) - increased min for better visibility
+        const baseRadius = 120 + (linearScale * 380); // Linear: 120m to 500m range
         
         // Create multiple overlapping circles with smooth gradient fade for blur effect
         // Best practice: Use Gaussian-like distribution for smoother gradient
