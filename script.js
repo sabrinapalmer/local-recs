@@ -1060,6 +1060,9 @@ async function createHeatmapLayer(placeType, recommendations) {
         appState.heatmapCircles.push(circle);
     });
     
+    // Rebuild clickable circles cache after adding new circles
+    buildClickableCirclesCache();
+    
     // Store info for reference
     appState.heatmapLayers[placeType] = { 
         count: recommendations.length,
