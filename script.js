@@ -1514,33 +1514,28 @@ function formatExpandedDetails(place, recId) {
     // 2. Summary info (same info that was in collapsed view) - shown at top after photo
     html += '<div class="place-summary-expanded">';
     
+    // Address (shortened) - shown first
+    if (place.formatted_address) {
+        const shortAddress = place.formatted_address.split(',')[0]; // Just street address
+        html += `<div class="place-summary-item">${escapeHtml(shortAddress)}</div>`;
+    }
+    
     // Rating
     if (place.rating !== undefined) {
         const stars = '⭐'.repeat(Math.round(place.rating));
         const ratingText = place.user_ratings_total 
             ? `${place.rating.toFixed(1)} ${stars} (${place.user_ratings_total.toLocaleString()} reviews)`
             : `${place.rating.toFixed(1)} ${stars}`;
-        html += `<div class="place-summary-item"><strong>Rating:</strong> ${ratingText}</div>`;
-    }
-    
-    // Address (shortened)
-    if (place.formatted_address) {
-        const shortAddress = place.formatted_address.split(',')[0]; // Just street address
-        html += `<div class="place-summary-item"><strong>📍 Address:</strong> ${escapeHtml(shortAddress)}</div>`;
-    }
-    
-    // Price level
-    if (place.price_level !== undefined) {
-        const priceSymbols = '$'.repeat(place.price_level + 1);
-        html += `<div class="place-summary-item"><strong>💰 Price:</strong> ${priceSymbols}</div>`;
+        html += `<div class="place-summary-item">${ratingText}</div>`;
     }
     
     // Opening status
     if (place.opening_hours) {
         const isOpen = place.opening_hours.isOpen ? place.opening_hours.isOpen() : null;
         if (isOpen !== null) {
-            const statusText = isOpen ? '<span style="color: #27ae60;">● Open now</span>' : '<span style="color: #e74c3c;">● Closed now</span>';
-            html += `<div class="place-summary-item"><strong>Status:</strong> ${statusText}</div>`;
+            const statusText = isOpen ? 'Open now' : 'Closed now';
+            const statusColor = isOpen ? '#27ae60' : '#e74c3c';
+            html += `<div class="place-summary-item" style="color: ${statusColor};">${statusText}</div>`;
         }
     }
     
