@@ -1925,6 +1925,9 @@ async function createHeatmapLayer(placeType, recommendations) {
             // If all neighborhoods have the same count, use middle size
             linearScale = 0.5;
         }
+        // Map to radius range: 90m (min) to 300m (max) for tighter, less fuzzy circles
+        const baseRadius = 90 + (linearScale * 210); // Linear: 90m to 300m range
+        
         // Create multiple overlapping circles with smooth gradient fade for blur effect
         // Use fewer layers and smaller step to keep circles crisp
         const blurLayers = 6;
