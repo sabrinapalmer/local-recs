@@ -145,6 +145,7 @@ class AppState {
             });
         }
         this.heatmapCircles = [];
+        this.clickableCircles = []; // Clear clickable circles cache
         // Clear metadata
         this.heatmapLayers = {};
     }
@@ -691,40 +692,73 @@ function groupByNeighborhood(recommendations) {
  * @param {number} lng - Longitude of clicked point
  * @returns {Object} Object with place types as keys, containing overlapping hotspot data
  */
+// Cache for clickable circles to speed up overlap detection
+let clickableCirclesCache = null;
+
+/**
+ * Build cache of clickable circles for faster lookup
+ */
+function buildClickableCirclesCache() {
+    clickableCirclesCache = appState.clickableCircles.filter(
+        circle => circle.clickable && circle.neighborhoodData && circle.center && circle.baseRadius
+    );
+}
+
+/**
+ * Find all overlapping hotspots at a given location (optimized with caching)
+ * @param {number} lat - Latitude of clicked point
+ * @param {number} lng - Longitude of clicked point
+ * @returns {Object} Object with place types as keys, containing overlapping hotspot data
+ */
 function findOverlappingHotspots(lat, lng) {
     const overlapping = {};
     
-    // Check all clickable circles (innermost circles only)
-    appState.heatmapCircles.forEach(circle => {
-        if (circle.clickable && circle.neighborhoodData && circle.center && circle.baseRadius) {
-            // Calculate distance from clicked point to circle center
-            const distance = calculateDistance(lat, lng, circle.center.lat, circle.center.lng);
+    // Use cached clickable circles for faster lookup
+    const circlesToCheck = clickableCirclesCache || appState.clickableCircles;
+    const tolerance = 1.1; // Pre-compute tolerance multiplier
+    
+    // Optimized: Use for loop instead of forEach for better performance
+    for (let i = 0; i < circlesToCheck.length; i++) {
+        const circle = circlesToCheck[i];
+        
+        // Quick bounds check first (approximate, faster than full distance calculation)
+        const latDiff = Math.abs(lat - circle.center.lat);
+        const lngDiff = Math.abs(lng - circle.center.lng);
+        const maxRadius = circle.baseRadius * tolerance;
+        
+        // Skip if clearly outside bounds (quick rejection)
+        if (latDiff * 111000 > maxRadius || lngDiff * 111000 * Math.cos(lat * Math.PI / 180) > maxRadius) {
+            continue;
+        }
+        
+        // Calculate exact distance only if within approximate bounds
+        const distance = calculateDistance(lat, lng, circle.center.lat, circle.center.lng);
+        
+        if (distance <= maxRadius) {
+            const placeType = circle.placeType;
             
-            // Check if clicked point is within the circle's radius
-            // Use a slightly larger tolerance (1.1x) to account for click precision
-            if (distance <= circle.baseRadius * 1.1) {
-                const placeType = circle.placeType;
-                
-                if (!overlapping[placeType]) {
-                    overlapping[placeType] = {
-                        placeType: placeType,
-                        neighborhoods: []
-                    };
-                }
-                
-                // Check if we already have this neighborhood (avoid duplicates)
-                const neighborhoodName = circle.neighborhoodData.name;
-                const alreadyAdded = overlapping[placeType].neighborhoods.some(
-                    n => n.name === neighborhoodName
-                );
-                
-                if (!alreadyAdded) {
-                    // Add this neighborhood's recommendations
-                    overlapping[placeType].neighborhoods.push(circle.neighborhoodData);
+            if (!overlapping[placeType]) {
+                overlapping[placeType] = {
+                    placeType: placeType,
+                    neighborhoods: []
+                };
+            }
+            
+            // Check if we already have this neighborhood (avoid duplicates)
+            const neighborhoodName = circle.neighborhoodData.name;
+            let alreadyAdded = false;
+            for (let j = 0; j < overlapping[placeType].neighborhoods.length; j++) {
+                if (overlapping[placeType].neighborhoods[j].name === neighborhoodName) {
+                    alreadyAdded = true;
+                    break;
                 }
             }
+            
+            if (!alreadyAdded) {
+                overlapping[placeType].neighborhoods.push(circle.neighborhoodData);
+            }
         }
-    });
+    }
     
     return overlapping;
 }
@@ -943,10 +977,9 @@ async function createHeatmapLayer(placeType, recommendations) {
         const baseRadius = 120 + (linearScale * 380); // Linear: 120m to 500m range
         
         // Create multiple overlapping circles with smooth gradient fade for blur effect
-        // Best practice: Use Gaussian-like distribution for smoother gradient
-        // Optimized: 15 layers for smooth gradient without excessive rendering
-        const blurLayers = 15; // Slightly more layers for smoother gradient
-        const blurStep = baseRadius * 0.06; // Larger step for better coverage
+        // Optimized: Reduced to 10 layers for faster rendering while maintaining smooth gradient
+        const blurLayers = 10; // Reduced from 15 for better performance
+        const blurStep = baseRadius * 0.08; // Larger step for fewer layers
         
         // Create blur layers (outer to inner) with Gaussian-like smooth opacity gradient
         for (let i = blurLayers - 1; i >= 0; i--) {
@@ -981,35 +1014,41 @@ async function createHeatmapLayer(placeType, recommendations) {
                     content: infoContent
                 });
                 
-                // Add click listener to show recommendations list in modal
+                // Store neighborhood data with the main circle BEFORE adding listener
+                circle.neighborhoodData = neighborhood;
+                circle.placeType = placeType; // Store place type for finding overlaps
+                circle.baseRadius = baseRadius; // Store base radius for overlap detection
+                circle.center = neighborhood.center; // Store center for overlap detection
+                
+                // Add to clickable circles cache for faster lookup
+                appState.clickableCircles.push(circle);
+                
+                // Add optimized click listener with throttling
+                let clickTimeout = null;
                 circle.addListener('click', (event) => {
+                    // Throttle rapid clicks
+                    if (clickTimeout) return;
+                    clickTimeout = setTimeout(() => { clickTimeout = null; }, 100);
+                    
                     // Get the clicked position from the event, or use circle center as fallback
                     let clickedLat, clickedLng;
                     if (event && event.latLng) {
                         clickedLat = event.latLng.lat();
                         clickedLng = event.latLng.lng();
                     } else {
-                        // Fallback to circle center
+                        // Fallback to circle center (faster)
                         clickedLat = circle.center.lat;
                         clickedLng = circle.center.lng;
                     }
                     
-                    // Find all overlapping hotspots at this location
+                    // Find all overlapping hotspots at this location (optimized)
                     const overlappingHotspots = findOverlappingHotspots(clickedLat, clickedLng);
                     
                     // Only show modal if we found overlapping hotspots
                     if (Object.keys(overlappingHotspots).length > 0) {
                         showHotspotModal(clickedLat, clickedLng, overlappingHotspots);
-                    } else {
-                        console.warn('No overlapping hotspots found at clicked location');
                     }
                 });
-                
-                // Store neighborhood data with the main circle
-                circle.neighborhoodData = neighborhood;
-                circle.placeType = placeType; // Store place type for finding overlaps
-                circle.baseRadius = baseRadius; // Store base radius for overlap detection
-                circle.center = neighborhood.center; // Store center for overlap detection
             }
             
             circlesToAdd.push(circle);
