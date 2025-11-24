@@ -1421,9 +1421,9 @@ gmp-place-autocomplete input:focus {
     color: var(--color-gray-700);
 }
 
-/* Collapsed state: vertical layout (thumbnail top, info below) */
+/* Collapsed state: horizontal layout (thumbnail left, info right) */
 .rec-summary-content.rec-summary-collapsed {
-    flex-direction: column;
+    flex-direction: row;
     align-items: flex-start;
 }
 
