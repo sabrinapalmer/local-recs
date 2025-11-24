@@ -1443,12 +1443,14 @@ gmp-place-autocomplete input:focus {
     cursor: pointer;
 }
 
-.rec-summary.expanded .rec-thumbnail {
-    width: 100%;
-    max-width: 300px;
-    height: auto;
-    max-height: 200px;
-    margin: 0 auto;
+.rec-summary.expanded .rec-thumbnail-container {
+    display: none; /* Hide thumbnail when expanded, carousel will show instead */
+}
+
+.rec-expanded-details {
+    margin-top: var(--spacing-md);
+    padding-top: var(--spacing-md);
+    border-top: 1px solid var(--color-gray-200);
 }
 
 .rec-summary-info-text {

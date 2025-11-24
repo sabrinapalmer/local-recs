@@ -904,9 +904,9 @@ function showHotspotModal(lat, lng, overlappingHotspots) {
                         <div class="rec-details">
                             <span class="rec-location">${escapeHtml(location)}</span>
                         </div>
-                    </div>
-                    <div class="rec-place-details" id="${recId}-details" style="display: none;">
-                        <div class="rec-loading">Loading details...</div>
+                        <div class="rec-expanded-details" id="${recId}-expanded-details" style="display: none;">
+                            <!-- Expanded details will be inserted here -->
+                        </div>
                     </div>
                 </li>
             `;
@@ -977,21 +977,21 @@ function showHotspotModal(lat, lng, overlappingHotspots) {
                 }
                 
                 const recId = this.getAttribute('data-rec-id');
-                const detailsDiv = document.getElementById(`${recId}-details`);
+                const expandedDetailsDiv = document.getElementById(`${recId}-expanded-details`);
                 const summaryDiv = document.getElementById(`${recId}-summary`);
                 
-                if (!detailsDiv || !summaryDiv) return;
+                if (!expandedDetailsDiv || !summaryDiv) return;
                 
-                const isExpanded = detailsDiv.style.display !== 'none';
+                const isExpanded = expandedDetailsDiv.style.display !== 'none';
                 
                 // Close all other recommendations first (accordion behavior)
                 recommendationItems.forEach(otherItem => {
                     if (otherItem !== this) {
                         const otherRecId = otherItem.getAttribute('data-rec-id');
-                        const otherDetailsDiv = document.getElementById(`${otherRecId}-details`);
+                        const otherExpandedDiv = document.getElementById(`${otherRecId}-expanded-details`);
                         const otherSummaryDiv = document.getElementById(`${otherRecId}-summary`);
-                        if (otherDetailsDiv && otherSummaryDiv) {
-                            otherDetailsDiv.style.display = 'none';
+                        if (otherExpandedDiv && otherSummaryDiv) {
+                            otherExpandedDiv.style.display = 'none';
                             otherSummaryDiv.classList.remove('expanded');
                         }
                     }
@@ -999,10 +999,10 @@ function showHotspotModal(lat, lng, overlappingHotspots) {
                 
                 // Toggle this one
                 if (isExpanded) {
-                    detailsDiv.style.display = 'none';
+                    expandedDetailsDiv.style.display = 'none';
                     summaryDiv.classList.remove('expanded');
                 } else {
-                    detailsDiv.style.display = 'block';
+                    expandedDetailsDiv.style.display = 'block';
                     summaryDiv.classList.add('expanded');
                 }
             });
@@ -1097,14 +1097,13 @@ function updatePlaceSummary(recId, place) {
     
     let summaryHtml = '<div class="rec-summary-content">';
     
-    // Thumbnail photo at top
+    // Thumbnail photo at top (only when collapsed)
     if (place.photos && place.photos.length > 0) {
         const photo = place.photos[0];
         const thumbnailUrl = photo.getUrl({ maxWidth: 150, maxHeight: 150 });
-        const expandedUrl = photo.getUrl({ maxWidth: 400, maxHeight: 300 });
         summaryHtml += `
-            <div class="rec-summary-photo">
-                <img src="${thumbnailUrl}" alt="${escapeHtml(place.name)}" class="rec-thumbnail" data-expanded-src="${expandedUrl}">
+            <div class="rec-summary-photo rec-thumbnail-container">
+                <img src="${thumbnailUrl}" alt="${escapeHtml(place.name)}" class="rec-thumbnail">
             </div>
         `;
     }
@@ -1226,8 +1225,8 @@ async function loadAllPlaceDetails(modalBody) {
                             // Update summary
                             updatePlaceSummary(recId, placeDetails);
                             
-                            // Store full details (pass recId for carousel)
-                            detailsDiv.innerHTML = formatPlaceDetails(placeDetails, recId);
+                            // Store expanded details (without photo since it's already in summary)
+                            expandedDetailsDiv.innerHTML = formatExpandedDetails(placeDetails, recId);
                             
                             // Initialize photo carousel if it exists
                             initializePhotoCarousel(recId, placeDetails);
@@ -1240,12 +1239,15 @@ async function loadAllPlaceDetails(modalBody) {
                         if (summaryInfo) {
                             summaryInfo.innerHTML = `<div class="rec-error-small">Details unavailable</div>`;
                         }
-                        detailsDiv.innerHTML = `<div class="rec-error">Place details not available. This location may not be in Google Places database.</div>`;
+                        expandedDetailsDiv.innerHTML = `<div class="rec-error">Place details not available. This location may not be in Google Places database.</div>`;
                     }
                 }
             } catch (error) {
                 console.error(`Error loading details for ${recId}:`, error);
-                detailsDiv.innerHTML = `<div class="rec-error">Unable to load details: ${error.message}</div>`;
+                const expandedDetailsDiv = document.getElementById(`${recId}-expanded-details`);
+                if (expandedDetailsDiv) {
+                    expandedDetailsDiv.innerHTML = `<div class="rec-error">Unable to load details: ${error.message}</div>`;
+                }
                 const button = item.querySelector('.rec-load-details-btn');
                 if (button) {
                     button.style.display = 'none';
