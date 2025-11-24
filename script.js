@@ -753,18 +753,33 @@ async function createHeatmapLayer(placeType, recommendations) {
     // Group by neighborhood - this ensures each hotspot is based ONLY on this type's recommendations
     const neighborhoods = groupByNeighborhood(recommendations);
     
+    // Calculate min and max counts for linear scaling
+    const neighborhoodArray = Object.values(neighborhoods);
+    if (neighborhoodArray.length === 0) return;
+    
+    const counts = neighborhoodArray.map(n => n.count);
+    const minCount = Math.min(...counts);
+    const maxCount = Math.max(...counts);
+    const countRange = maxCount - minCount;
+    
     // Batch circle creation for better performance
     const circlesToAdd = [];
     
     // Create heatmap circles for each neighborhood
-    Object.values(neighborhoods).forEach(neighborhood => {
-        // Base radius calculation: uses logarithmic scaling to prevent excessive overlap
-        // Best practice: Use logarithmic scaling for better distribution and reduced overlap
-        // Range: 50m minimum (for 1 rec) up to 500m maximum (reduced to prevent overlap)
-        // Logarithmic scaling: log(count + 1) provides smoother size progression
-        const maxCount = 50; // Assume max ~50 recs per neighborhood for scaling
-        const logScale = Math.log(neighborhood.count + 1) / Math.log(maxCount + 1); // Normalized 0-1
-        const baseRadius = Math.max(50, Math.min(50 + (logScale * 450), 500)); // 50m to 500m range
+    neighborhoodArray.forEach(neighborhood => {
+        // Base radius calculation: uses LINEAR scaling for proportional size variation
+        // Range: 50m minimum (for min count) up to 500m maximum (for max count)
+        // Linear scaling: directly proportional to recommendation count
+        let linearScale = 0;
+        if (countRange > 0) {
+            // Normalize count to 0-1 range: (count - min) / (max - min)
+            linearScale = (neighborhood.count - minCount) / countRange;
+        } else {
+            // If all neighborhoods have the same count, use middle size
+            linearScale = 0.5;
+        }
+        // Map to radius range: 50m (min) to 500m (max)
+        const baseRadius = 50 + (linearScale * 450); // Linear: 50m to 500m range
         
         // Create multiple overlapping circles with smooth gradient fade for blur effect
         // Best practice: Use Gaussian-like distribution for smoother gradient
