@@ -1844,6 +1844,34 @@ gmp-place-autocomplete input:focus {
     text-decoration: none !important;
 }
 
+/* ============================================================
+   🔵 MAP HOTSPOT LABELS
+   ============================================================ */
+.hotspot-label-overlay {
+    transform: translate(-50%, -140%);
+    background: rgba(255, 255, 255, 0.95);
+    border-radius: 12px;
+    padding: 6px 12px;
+    min-width: 120px;
+    text-align: center;
+    box-shadow: 0 12px 26px rgba(15, 23, 42, 0.18);
+    border: 1px solid rgba(15, 23, 42, 0.08);
+    backdrop-filter: blur(6px);
+}
+
+.hotspot-label-title {
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: #111827;
+}
+
+.hotspot-label-meta {
+    font-size: 0.75rem;
+    color: #475569;
+    margin-top: 2px;
+    font-variant-numeric: tabular-nums;
+}
+
 @media (max-width: 768px) {
     .hotspot-modal {
         width: 100vw;
