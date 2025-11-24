@@ -1204,7 +1204,8 @@ async function loadAllPlaceDetails(modalBody) {
                         updatePlaceSummary(recId, placeDetails);
                         
                         // Store full details for expansion
-                        detailsDiv.innerHTML = formatPlaceDetails(placeDetails);
+                        detailsDiv.innerHTML = formatPlaceDetails(placeDetails, recId);
+                        initializePhotoCarousel(recId, placeDetails);
                     } catch (error) {
                         console.error(`Error fetching place details for ${placeName} (place_id: ${placeId}):`, error);
                         const summaryInfo = document.getElementById(`${recId}-summary-info`);
