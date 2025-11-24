@@ -102,6 +102,7 @@ class AppState {
         this.streetViewPanorama = null;
         this.markers = [];
         this.heatmapCircles = []; // Store heatmap circles
+        this.clickableCircles = []; // Cache clickable circles for faster click detection
         this.heatmapLayers = {};
         this.currentInfoWindow = null; // Track open info window
         this.allRecommendations = [];
