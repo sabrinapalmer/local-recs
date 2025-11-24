@@ -104,6 +104,7 @@ class AppState {
         this.heatmapCircles = []; // Store heatmap circles
         this.clickableCircles = []; // Cache clickable circles for faster click detection
         this.heatmapLayers = {};
+        this.halftoneOverlays = []; // Store halftone overlays for cleanup
         this.currentInfoWindow = null; // Track open info window
         this.allRecommendations = [];
         this.filteredRecommendations = [];
@@ -1750,6 +1751,101 @@ function createNeighborhoodInfoContent(neighborhood, placeType) {
 }
 
 /**
+ * Halftone Circle Overlay for Google Maps
+ * Creates a halftone pattern circle overlay
+ */
+class HalftoneCircleOverlay extends google.maps.OverlayView {
+    constructor(center, radius, color, opacity) {
+        super();
+        this.center = center;
+        this.radius = radius;
+        this.color = color;
+        this.opacity = opacity;
+        this.div = null;
+    }
+
+    onAdd() {
+        const div = document.createElement('div');
+        div.style.position = 'absolute';
+        div.style.width = (this.radius * 2) + 'px';
+        div.style.height = (this.radius * 2) + 'px';
+        div.style.borderRadius = '50%';
+        div.style.overflow = 'hidden';
+        div.style.pointerEvents = 'none';
+        
+        // Create canvas for halftone pattern
+        const canvas = document.createElement('canvas');
+        canvas.width = this.radius * 2;
+        canvas.height = this.radius * 2;
+        const ctx = canvas.getContext('2d');
+        
+        // Convert hex color to RGB
+        const hex = this.color.replace('#', '');
+        const r = parseInt(hex.substr(0, 2), 16);
+        const g = parseInt(hex.substr(2, 2), 16);
+        const b = parseInt(hex.substr(4, 2), 16);
+        
+        // Create halftone pattern
+        const dotSize = 4;
+        const dotSpacing = 8;
+        const centerX = this.radius;
+        const centerY = this.radius;
+        
+        // Draw halftone dots in a radial pattern
+        for (let angle = 0; angle < 360; angle += 15) {
+            for (let dist = 0; dist < this.radius; dist += dotSpacing) {
+                const rad = (angle * Math.PI) / 180;
+                const x = centerX + Math.cos(rad) * dist;
+                const y = centerY + Math.sin(rad) * dist;
+                
+                // Calculate opacity based on distance from center (fade out at edges)
+                const distanceFromCenter = Math.sqrt(Math.pow(x - centerX, 2) + Math.pow(y - centerY, 2));
+                const fadeFactor = 1 - (distanceFromCenter / this.radius);
+                const dotOpacity = this.opacity * fadeFactor * 0.6;
+                
+                if (distanceFromCenter < this.radius) {
+                    ctx.fillStyle = `rgba(${r}, ${g}, ${b}, ${dotOpacity})`;
+                    ctx.beginPath();
+                    ctx.arc(x, y, dotSize * fadeFactor, 0, 2 * Math.PI);
+                    ctx.fill();
+                }
+            }
+        }
+        
+        // Add radial gradient overlay for smoother blending
+        const gradient = ctx.createRadialGradient(centerX, centerY, 0, centerX, centerY, this.radius);
+        gradient.addColorStop(0, `rgba(${r}, ${g}, ${b}, ${this.opacity * 0.3})`);
+        gradient.addColorStop(0.7, `rgba(${r}, ${g}, ${b}, ${this.opacity * 0.2})`);
+        gradient.addColorStop(1, `rgba(${r}, ${g}, ${b}, 0)`);
+        ctx.fillStyle = gradient;
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+        
+        div.appendChild(canvas);
+        this.div = div;
+        
+        const panes = this.getPanes();
+        panes.overlayMouseTarget.appendChild(div);
+    }
+
+    draw() {
+        const overlayProjection = this.getProjection();
+        const position = overlayProjection.fromLatLngToDivPixel(this.center);
+        
+        if (this.div) {
+            this.div.style.left = (position.x - this.radius) + 'px';
+            this.div.style.top = (position.y - this.radius) + 'px';
+        }
+    }
+
+    onRemove() {
+        if (this.div && this.div.parentNode) {
+            this.div.parentNode.removeChild(this.div);
+        }
+        this.div = null;
+    }
+}
+
+/**
  * Create visual heatmap effect using neighborhood-based circles with blur effect
  * Each hotspot is positioned based ONLY on recommendations of this specific type in that neighborhood
  * Optimized for faster rendering with batched circle creation
@@ -1815,19 +1911,37 @@ async function createHeatmapLayer(placeType, recommendations) {
                 neighborhood.center.lng
             );
             
-            // Lower opacity for better blending with halftone effect
-            const circle = new google.maps.Circle({
-                strokeColor: 'transparent',
-                strokeOpacity: 0,
-                strokeWeight: 0,
-                fillColor: color,
-                fillOpacity: layerOpacity * 0.3, // Lower opacity for prettier blending
-                map: appState.map,
-                center: center,
-                radius: layerRadius,
-                zIndex: 1 + i,
-                clickable: i === 0
-            });
+            // Create halftone overlay for visual effect (all layers)
+            const halftoneOverlay = new HalftoneCircleOverlay(
+                center,
+                layerRadius,
+                color,
+                layerOpacity * 0.4 * (1 - i * 0.15) // Lower opacity for prettier blending, fade for outer layers
+            );
+            halftoneOverlay.setMap(appState.map);
+            
+            // Store overlay for cleanup
+            if (!appState.halftoneOverlays) {
+                appState.halftoneOverlays = [];
+            }
+            appState.halftoneOverlays.push(halftoneOverlay);
+            
+            // Create clickable circle (transparent, just for click detection) - only for innermost
+            let circle = null;
+            if (i === 0) {
+                circle = new google.maps.Circle({
+                    strokeColor: 'transparent',
+                    strokeOpacity: 0,
+                    strokeWeight: 0,
+                    fillColor: color,
+                    fillOpacity: 0.01, // Nearly transparent, just for click detection
+                    map: appState.map,
+                    center: center,
+                    radius: layerRadius,
+                    zIndex: 1000 + i, // Higher z-index for click detection
+                    clickable: true
+                });
+            }
             
             // Only add click listener to the innermost circle
             if (i === 0) {
