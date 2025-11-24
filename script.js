@@ -1011,6 +1011,82 @@ function showHotspotModal(lat, lng, overlappingHotspots) {
 }
 
 /**
+ * Initialize photo carousel for a recommendation
+ * @param {string} recId - Recommendation ID
+ * @param {Object} place - Place details object
+ */
+function initializePhotoCarousel(recId, place) {
+    if (!place.photos || place.photos.length <= 1) return;
+    
+    const carousel = document.getElementById(`${recId}-carousel`);
+    if (!carousel) return;
+    
+    const photos = JSON.parse(carousel.getAttribute('data-photos'));
+    const prevBtn = document.getElementById(`${recId}-carousel-prev`);
+    const nextBtn = document.getElementById(`${recId}-carousel-next`);
+    const img = document.getElementById(`${recId}-carousel-img`);
+    const indicator = carousel.querySelector('.carousel-indicator');
+    let currentIndex = 0;
+    
+    const updateCarousel = (index) => {
+        if (index < 0) index = photos.length - 1;
+        if (index >= photos.length) index = 0;
+        currentIndex = index;
+        
+        if (img) {
+            img.src = photos[index].url;
+            img.style.opacity = '0';
+            setTimeout(() => {
+                img.style.opacity = '1';
+            }, 50);
+        }
+        
+        if (indicator) {
+            indicator.textContent = `${index + 1} / ${photos.length}`;
+        }
+        
+        carousel.setAttribute('data-current', index);
+    };
+    
+    if (prevBtn) {
+        prevBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            updateCarousel(currentIndex - 1);
+        });
+    }
+    
+    if (nextBtn) {
+        nextBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            updateCarousel(currentIndex + 1);
+        });
+    }
+    
+    // Make photo clickable to advance
+    if (img) {
+        img.style.cursor = 'pointer';
+        img.addEventListener('click', (e) => {
+            e.stopPropagation();
+            updateCarousel(currentIndex + 1);
+        });
+    }
+    
+    // Keyboard navigation
+    carousel.addEventListener('keydown', (e) => {
+        if (e.key === 'ArrowLeft') {
+            e.stopPropagation();
+            updateCarousel(currentIndex - 1);
+        } else if (e.key === 'ArrowRight') {
+            e.stopPropagation();
+            updateCarousel(currentIndex + 1);
+        }
+    });
+    
+    // Make carousel focusable for keyboard
+    carousel.setAttribute('tabindex', '0');
+}
+
+/**
  * Update place summary with key information
  * @param {string} recId - Recommendation ID
  * @param {Object} place - Place details object
@@ -1089,8 +1165,8 @@ async function loadAllPlaceDetails(modalBody) {
         
         if (!detailsDiv) return;
         
-        // Show loading state
-        detailsDiv.style.display = 'block';
+        // Keep details hidden by default (will show when clicked)
+        detailsDiv.style.display = 'none';
         detailsDiv.innerHTML = '<div class="rec-loading">Loading details...</div>';
         
         // Create promise for this item
@@ -1149,8 +1225,11 @@ async function loadAllPlaceDetails(modalBody) {
                             // Update summary
                             updatePlaceSummary(recId, placeDetails);
                             
-                            // Store full details
-                            detailsDiv.innerHTML = formatPlaceDetails(placeDetails);
+                            // Store full details (pass recId for carousel)
+                            detailsDiv.innerHTML = formatPlaceDetails(placeDetails, recId);
+                            
+                            // Initialize photo carousel if it exists
+                            initializePhotoCarousel(recId, placeDetails);
                         } else {
                             throw new Error('Text search also failed');
                         }
@@ -1406,18 +1485,30 @@ function fetchPlaceDetails(placeId) {
 /**
  * Format place details for display
  * @param {Object} place - Google Places API place object
+ * @param {string} recId - Recommendation ID for carousel
  * @returns {string} HTML string
  */
-function formatPlaceDetails(place) {
+function formatPlaceDetails(place, recId) {
     let html = '<div class="place-details-content">';
     
-    // Photo
+    // Photo carousel (only show if multiple photos)
     if (place.photos && place.photos.length > 0) {
-        const photo = place.photos[0];
-        const photoUrl = photo.getUrl({ maxWidth: 400, maxHeight: 300 });
+        const photos = place.photos.slice(0, 5); // Limit to 5 photos
+        const photoUrls = photos.map((photo, index) => ({
+            url: photo.getUrl({ maxWidth: 800, maxHeight: 600 }),
+            index: index
+        }));
+        
         html += `
-            <div class="place-photo">
-                <img src="${photoUrl}" alt="${escapeHtml(place.name)}" style="width: 100%; border-radius: 8px; margin-bottom: 12px;">
+            <div class="place-photo-carousel" id="${recId}-carousel" data-photos='${JSON.stringify(photoUrls)}' data-current="0">
+                <div class="carousel-container">
+                    <img src="${photoUrls[0].url}" alt="${escapeHtml(place.name)}" class="carousel-photo" id="${recId}-carousel-img">
+                    ${photos.length > 1 ? `
+                        <button class="carousel-prev" id="${recId}-carousel-prev">‹</button>
+                        <button class="carousel-next" id="${recId}-carousel-next">›</button>
+                        <div class="carousel-indicator">1 / ${photos.length}</div>
+                    ` : ''}
+                </div>
             </div>
         `;
     }

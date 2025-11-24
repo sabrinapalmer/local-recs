@@ -1536,9 +1536,75 @@ gmp-place-autocomplete input:focus {
     gap: var(--spacing-sm);
 }
 
-.place-photo img {
-    max-width: 100%;
+.place-photo-carousel {
+    position: relative;
+    width: 100%;
+    margin-bottom: var(--spacing-md);
+    border-radius: var(--radius-md);
+    overflow: hidden;
+}
+
+.carousel-container {
+    position: relative;
+    width: 100%;
+    background: var(--color-gray-100);
+}
+
+.carousel-photo {
+    width: 100%;
     height: auto;
+    max-height: 400px;
+    object-fit: cover;
+    display: block;
+    transition: opacity 0.3s ease;
+    cursor: pointer;
+}
+
+.carousel-prev,
+.carousel-next {
+    position: absolute;
+    top: 50%;
+    transform: translateY(-50%);
+    background: rgba(255, 255, 255, 0.9);
+    border: none;
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    font-size: 24px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--color-gray-800);
+    transition: all 0.2s ease;
+    z-index: 10;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+}
+
+.carousel-prev:hover,
+.carousel-next:hover {
+    background: white;
+    transform: translateY(-50%) scale(1.1);
+}
+
+.carousel-prev {
+    left: 10px;
+}
+
+.carousel-next {
+    right: 10px;
+}
+
+.carousel-indicator {
+    position: absolute;
+    bottom: 10px;
+    right: 10px;
+    background: rgba(0, 0, 0, 0.7);
+    color: white;
+    padding: 4px 8px;
+    border-radius: var(--radius-sm);
+    font-size: 0.85rem;
+    z-index: 10;
 }
 
 .place-info-row {
