@@ -1337,11 +1337,18 @@ gmp-place-autocomplete input:focus {
     border-radius: var(--radius-md);
     border: 1px solid var(--color-gray-200);
     margin-bottom: var(--spacing-sm);
-    transition: box-shadow 0.2s ease;
+    transition: all 0.2s ease;
 }
 
 .hotspot-recommendation-item:hover {
     box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    border-color: var(--color-primary);
+}
+
+.hotspot-recommendation-item .rec-summary.expanded {
+    border-bottom: 1px solid var(--color-gray-200);
+    padding-bottom: var(--spacing-md);
+    margin-bottom: var(--spacing-sm);
 }
 
 .rec-header {
@@ -1395,6 +1402,11 @@ gmp-place-autocomplete input:focus {
     display: flex;
     flex-direction: column;
     gap: var(--spacing-xs);
+    transition: all 0.3s ease;
+}
+
+.rec-summary.expanded {
+    padding-bottom: var(--spacing-sm);
 }
 
 .rec-summary-info {
@@ -1404,14 +1416,21 @@ gmp-place-autocomplete input:focus {
 
 .rec-summary-content {
     display: flex;
+    flex-direction: column;
     gap: var(--spacing-sm);
     font-size: 0.85rem;
     color: var(--color-gray-600);
-    align-items: flex-start;
 }
 
 .rec-summary-photo {
-    flex-shrink: 0;
+    width: 100%;
+    display: flex;
+    justify-content: center;
+    transition: all 0.3s ease;
+}
+
+.rec-summary.expanded .rec-summary-photo {
+    margin-bottom: var(--spacing-sm);
 }
 
 .rec-thumbnail {
@@ -1420,6 +1439,16 @@ gmp-place-autocomplete input:focus {
     object-fit: cover;
     border-radius: var(--radius-sm);
     border: 1px solid var(--color-gray-200);
+    transition: all 0.3s ease;
+    cursor: pointer;
+}
+
+.rec-summary.expanded .rec-thumbnail {
+    width: 100%;
+    max-width: 300px;
+    height: auto;
+    max-height: 200px;
+    margin: 0 auto;
 }
 
 .rec-summary-info-text {

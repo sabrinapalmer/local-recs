@@ -895,18 +895,15 @@ function showHotspotModal(lat, lng, overlappingHotspots) {
             content += `
                 <li class="hotspot-recommendation-item" data-place-id="${placeId || ''}" data-rec-id="${recId}" data-lat="${firstRec.latitude}" data-lng="${firstRec.longitude}" data-place-name="${escapeHtml(placeName)}">
                     <div class="rec-summary" id="${recId}-summary">
+                        <div class="rec-summary-info" id="${recId}-summary-info">
+                            <div class="rec-loading">Loading...</div>
+                        </div>
                         <div class="rec-header">
                             <strong class="rec-name">${escapeHtml(placeName)}</strong>${recCount}
                         </div>
                         <div class="rec-details">
                             <span class="rec-location">${escapeHtml(location)}</span>
                         </div>
-                        <div class="rec-summary-info" id="${recId}-summary-info">
-                            <div class="rec-loading">Loading...</div>
-                        </div>
-                        <button class="rec-expand-btn" id="${recId}-expand-btn" style="display: none;">
-                            <span class="rec-expand-arrow">▼</span> <span class="rec-expand-text">Show Details</span>
-                        </button>
                     </div>
                     <div class="rec-place-details" id="${recId}-details" style="display: none;">
                         <div class="rec-loading">Loading details...</div>
@@ -926,7 +923,7 @@ function showHotspotModal(lat, lng, overlappingHotspots) {
     modalBody.innerHTML = content;
     modal.style.display = 'flex';
     
-    // Add click handlers for collapsible sections
+    // Add click handlers for collapsible sections (accordion behavior)
     const typeHeaders = modalBody.querySelectorAll('.hotspot-type-header');
     typeHeaders.forEach(header => {
         header.addEventListener('click', function() {
@@ -936,6 +933,22 @@ function showHotspotModal(lat, lng, overlappingHotspots) {
             
             if (content && arrow) {
                 const isExpanded = content.style.display !== 'none';
+                
+                // Close all other type sections first (accordion behavior)
+                typeHeaders.forEach(otherHeader => {
+                    if (otherHeader !== this) {
+                        const otherTypeId = otherHeader.getAttribute('data-type-id');
+                        const otherContent = document.getElementById(`${otherTypeId}-content`);
+                        const otherArrow = document.getElementById(`${otherTypeId}-arrow`);
+                        if (otherContent && otherArrow) {
+                            otherContent.style.display = 'none';
+                            otherArrow.textContent = '▼';
+                            otherHeader.classList.remove('expanded');
+                        }
+                    }
+                });
+                
+                // Toggle this one
                 if (isExpanded) {
                     content.style.display = 'none';
                     arrow.textContent = '▼';
@@ -952,29 +965,45 @@ function showHotspotModal(lat, lng, overlappingHotspots) {
     // Load all place details in bulk
     loadAllPlaceDetails(modalBody);
     
-    // Add click handlers for expand buttons
+    // Add click handlers for recommendation rows (accordion behavior)
     setTimeout(() => {
-        const expandButtons = modalBody.querySelectorAll('.rec-expand-btn');
-        expandButtons.forEach(button => {
-            button.addEventListener('click', function() {
-                const recId = this.id.replace('-expand-btn', '');
-                const detailsDiv = document.getElementById(`${recId}-details`);
-                const arrow = this.querySelector('.rec-expand-arrow');
-                const text = this.querySelector('.rec-expand-text');
+        const recommendationItems = modalBody.querySelectorAll('.hotspot-recommendation-item');
+        recommendationItems.forEach(item => {
+            item.style.cursor = 'pointer';
+            item.addEventListener('click', function(e) {
+                // Don't trigger if clicking on links or buttons inside
+                if (e.target.tagName === 'A' || e.target.tagName === 'BUTTON' || e.target.closest('a') || e.target.closest('button')) {
+                    return;
+                }
                 
-                if (detailsDiv) {
-                    const isExpanded = detailsDiv.style.display !== 'none';
-                    if (isExpanded) {
-                        detailsDiv.style.display = 'none';
-                        arrow.textContent = '▼';
-                        text.textContent = 'Show Details';
-                        this.classList.remove('expanded');
-                    } else {
-                        detailsDiv.style.display = 'block';
-                        arrow.textContent = '▲';
-                        text.textContent = 'Hide Details';
-                        this.classList.add('expanded');
+                const recId = this.getAttribute('data-rec-id');
+                const detailsDiv = document.getElementById(`${recId}-details`);
+                const summaryDiv = document.getElementById(`${recId}-summary`);
+                
+                if (!detailsDiv || !summaryDiv) return;
+                
+                const isExpanded = detailsDiv.style.display !== 'none';
+                
+                // Close all other recommendations first (accordion behavior)
+                recommendationItems.forEach(otherItem => {
+                    if (otherItem !== this) {
+                        const otherRecId = otherItem.getAttribute('data-rec-id');
+                        const otherDetailsDiv = document.getElementById(`${otherRecId}-details`);
+                        const otherSummaryDiv = document.getElementById(`${otherRecId}-summary`);
+                        if (otherDetailsDiv && otherSummaryDiv) {
+                            otherDetailsDiv.style.display = 'none';
+                            otherSummaryDiv.classList.remove('expanded');
+                        }
                     }
+                });
+                
+                // Toggle this one
+                if (isExpanded) {
+                    detailsDiv.style.display = 'none';
+                    summaryDiv.classList.remove('expanded');
+                } else {
+                    detailsDiv.style.display = 'block';
+                    summaryDiv.classList.add('expanded');
                 }
             });
         });
@@ -992,13 +1021,14 @@ function updatePlaceSummary(recId, place) {
     
     let summaryHtml = '<div class="rec-summary-content">';
     
-    // Thumbnail photo
+    // Thumbnail photo at top
     if (place.photos && place.photos.length > 0) {
         const photo = place.photos[0];
-        const photoUrl = photo.getUrl({ maxWidth: 150, maxHeight: 150 });
+        const thumbnailUrl = photo.getUrl({ maxWidth: 150, maxHeight: 150 });
+        const expandedUrl = photo.getUrl({ maxWidth: 400, maxHeight: 300 });
         summaryHtml += `
             <div class="rec-summary-photo">
-                <img src="${photoUrl}" alt="${escapeHtml(place.name)}" class="rec-thumbnail">
+                <img src="${thumbnailUrl}" alt="${escapeHtml(place.name)}" class="rec-thumbnail" data-expanded-src="${expandedUrl}">
             </div>
         `;
     }
@@ -1099,12 +1129,6 @@ async function loadAllPlaceDetails(modalBody) {
                         
                         // Store full details for expansion
                         detailsDiv.innerHTML = formatPlaceDetails(placeDetails);
-                        
-                        // Show expand button
-                        const expandBtn = document.getElementById(`${recId}-expand-btn`);
-                        if (expandBtn) {
-                            expandBtn.style.display = 'flex';
-                        }
                     } catch (error) {
                         console.error(`Error fetching place details for ${placeName} (place_id: ${placeId}):`, error);
                         const summaryInfo = document.getElementById(`${recId}-summary-info`);
@@ -1127,12 +1151,6 @@ async function loadAllPlaceDetails(modalBody) {
                             
                             // Store full details
                             detailsDiv.innerHTML = formatPlaceDetails(placeDetails);
-                            
-                            // Show expand button
-                            const expandBtn = document.getElementById(`${recId}-expand-btn`);
-                            if (expandBtn) {
-                                expandBtn.style.display = 'flex';
-                            }
                         } else {
                             throw new Error('Text search also failed');
                         }
