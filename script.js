@@ -1056,10 +1056,17 @@ async function createHeatmapLayer(placeType, recommendations) {
                     if (event && event.latLng) {
                         clickedLat = event.latLng.lat();
                         clickedLng = event.latLng.lng();
+                    } else if (circle.center) {
+                        // Fallback to circle center - handle LatLng object
+                        if (typeof circle.center.lat === 'function') {
+                            clickedLat = circle.center.lat();
+                            clickedLng = circle.center.lng();
+                        } else {
+                            clickedLat = circle.center.lat;
+                            clickedLng = circle.center.lng;
+                        }
                     } else {
-                        // Fallback to circle center (faster)
-                        clickedLat = circle.center.lat;
-                        clickedLng = circle.center.lng;
+                        return; // Can't determine position
                     }
                     
                     // Find all overlapping hotspots at this location (optimized)
