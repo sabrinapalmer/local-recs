@@ -149,12 +149,17 @@ function initializeAds() {
                     return; // Already initialized
                 }
                 
-            // Set publisher ID and slot ID from config
+            // Ad client and slot are already set in HTML, just verify they're correct
+            // Only set if not already present (they should be set in HTML)
+            if (!element.getAttribute('data-ad-client')) {
+                element.setAttribute('data-ad-client', AD_CONFIG.PUBLISHER_ID);
+            }
+            
             const isLeftAd = element.closest('.ad-left');
             const slotId = isLeftAd ? AD_CONFIG.LEFT_AD_SLOT : AD_CONFIG.RIGHT_AD_SLOT;
-            
-            element.setAttribute('data-ad-client', AD_CONFIG.PUBLISHER_ID);
-            element.setAttribute('data-ad-slot', slotId);
+            if (!element.getAttribute('data-ad-slot')) {
+                element.setAttribute('data-ad-slot', slotId);
+            }
             
             // Add non-personalized ads parameter if consent not granted
             // This ensures non-personalized ads show before consent or if consent denied
