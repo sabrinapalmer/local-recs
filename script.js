@@ -834,9 +834,13 @@ function showHotspotModal(lat, lng, overlappingHotspots) {
     
     const totalRecommendations = allRecommendations.length;
     
-    // Set title
+    // Get neighborhood name from first recommendation
+    const firstNeighborhood = Object.values(overlappingHotspots)[0]?.neighborhoods[0];
+    const neighborhoodName = firstNeighborhood?.name || 'Unknown Neighborhood';
+    
+    // Set title with neighborhood
     if (modalTitle) {
-        modalTitle.textContent = `${totalRecommendations} Recommendation${totalRecommendations !== 1 ? 's' : ''} at This Location`;
+        modalTitle.innerHTML = `<div class="hotspot-modal-neighborhood">${escapeHtml(neighborhoodName)}</div><div class="hotspot-modal-subtitle">${totalRecommendations} Recommendation${totalRecommendations !== 1 ? 's' : ''} at This Location</div>`;
     }
     
     // Generate content with collapsible sections for each type
@@ -1094,10 +1098,10 @@ function updatePlaceSummary(recId, place) {
     const summaryInfo = document.getElementById(`${recId}-summary-info`);
     if (!summaryInfo) return;
     
-    // Vertical layout for collapsed state: thumbnail on top, info below
+    // Horizontal layout for collapsed state: thumbnail on LEFT, info on RIGHT
     let summaryHtml = '<div class="rec-summary-content rec-summary-collapsed">';
     
-    // Thumbnail photo on top (only when collapsed) - 80x80px square
+    // Thumbnail photo on LEFT (only when collapsed) - 80x80px square
     if (place.photos && place.photos.length > 0) {
         const photo = place.photos[0];
         const thumbnailUrl = photo.getUrl({ maxWidth: 150, maxHeight: 150 });
@@ -1110,7 +1114,10 @@ function updatePlaceSummary(recId, place) {
     
     summaryHtml += '<div class="rec-summary-info-text">';
     
-    // Address (shortened) - shown first
+    // Name (bold) - shown first
+    summaryHtml += `<div class="rec-summary-name"><strong>${escapeHtml(place.name)}</strong></div>`;
+    
+    // Address (shortened)
     if (place.formatted_address) {
         const shortAddress = place.formatted_address.split(',')[0]; // Just street address
         summaryHtml += `<div class="rec-summary-address">${escapeHtml(shortAddress)}</div>`;
@@ -1125,12 +1132,66 @@ function updatePlaceSummary(recId, place) {
         summaryHtml += `<div class="rec-summary-rating">${ratingText}</div>`;
     }
     
-    // Opening status
+    // Opening status with next time
     if (place.opening_hours) {
         const isOpen = place.opening_hours.isOpen ? place.opening_hours.isOpen() : null;
         if (isOpen !== null) {
-            const statusText = isOpen ? 'Open now' : 'Closed now';
+            let statusText = isOpen ? 'Open now' : 'Closed now';
             const statusColor = isOpen ? '#27ae60' : '#e74c3c';
+            
+            // Get next open/close time if available
+            if (place.opening_hours.weekday_text && place.opening_hours.weekday_text.length > 0) {
+                const now = new Date();
+                const currentDay = now.getDay(); // 0 = Sunday, 1 = Monday, etc.
+                const currentTime = now.getHours() * 100 + now.getMinutes();
+                
+                // Try to find next time from weekday_text
+                if (!isOpen) {
+                    // Closed - find when it opens next
+                    for (let i = 0; i < 7; i++) {
+                        const checkDay = (currentDay + i) % 7;
+                        const dayText = place.opening_hours.weekday_text[checkDay];
+                        if (dayText && dayText.includes(':')) {
+                            const match = dayText.match(/(\d{1,2}):(\d{2})\s*(AM|PM)/);
+                            if (match) {
+                                let hours = parseInt(match[1]);
+                                const minutes = parseInt(match[2]);
+                                const ampm = match[3];
+                                if (ampm === 'PM' && hours !== 12) hours += 12;
+                                if (ampm === 'AM' && hours === 12) hours = 0;
+                                const openTime = hours * 100 + minutes;
+                                
+                                if (i === 0 && openTime > currentTime) {
+                                    statusText += ` • Opens at ${match[1]}:${match[2]} ${ampm}`;
+                                    break;
+                                } else if (i > 0) {
+                                    const dayNames = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+                                    statusText += ` • Opens ${dayNames[checkDay]} at ${match[1]}:${match[2]} ${ampm}`;
+                                    break;
+                                }
+                            }
+                        }
+                    }
+                } else {
+                    // Open - find when it closes
+                    const dayText = place.opening_hours.weekday_text[currentDay];
+                    if (dayText && dayText.includes('–')) {
+                        const parts = dayText.split('–');
+                        if (parts.length > 1) {
+                            const closeMatch = parts[1].match(/(\d{1,2}):(\d{2})\s*(AM|PM)/);
+                            if (closeMatch) {
+                                let hours = parseInt(closeMatch[1]);
+                                const minutes = parseInt(closeMatch[2]);
+                                const ampm = closeMatch[3];
+                                if (ampm === 'PM' && hours !== 12) hours += 12;
+                                if (ampm === 'AM' && hours === 12) hours = 0;
+                                statusText += ` • Closes at ${closeMatch[1]}:${closeMatch[2]} ${ampm}`;
+                            }
+                        }
+                    }
+                }
+            }
+            
             summaryHtml += `<div class="rec-summary-status" style="color: ${statusColor};">${statusText}</div>`;
         }
     }
@@ -1714,17 +1775,18 @@ async function createHeatmapLayer(placeType, recommendations) {
                 neighborhood.center.lng
             );
             
+            // Lower opacity for better blending with halftone effect
             const circle = new google.maps.Circle({
-                strokeColor: 'transparent', // Explicitly transparent to avoid any dark edges
-                strokeOpacity: 0, // No stroke/edges
+                strokeColor: 'transparent',
+                strokeOpacity: 0,
                 strokeWeight: 0,
                 fillColor: color,
-                fillOpacity: layerOpacity,
+                fillOpacity: layerOpacity * 0.3, // Lower opacity for prettier blending
                 map: appState.map,
-                center: center, // Use proper LatLng object
+                center: center,
                 radius: layerRadius,
-                zIndex: 1 + i, // Outer layers behind inner layers
-                clickable: i === 0 // Only innermost circle is clickable
+                zIndex: 1 + i,
+                clickable: i === 0
             });
             
             // Only add click listener to the innermost circle
