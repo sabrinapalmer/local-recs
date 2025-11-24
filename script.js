@@ -894,13 +894,21 @@ function showHotspotModal(lat, lng, overlappingHotspots) {
             // If no place_id, try to find it using PlacesService nearby search
             content += `
                 <li class="hotspot-recommendation-item" data-place-id="${placeId || ''}" data-rec-id="${recId}" data-lat="${firstRec.latitude}" data-lng="${firstRec.longitude}" data-place-name="${escapeHtml(placeName)}">
-                    <div class="rec-header">
-                        <strong class="rec-name">${escapeHtml(placeName)}</strong>${recCount}
+                    <div class="rec-summary" id="${recId}-summary">
+                        <div class="rec-header">
+                            <strong class="rec-name">${escapeHtml(placeName)}</strong>${recCount}
+                        </div>
+                        <div class="rec-details">
+                            <span class="rec-location">${escapeHtml(location)}</span>
+                        </div>
+                        <div class="rec-summary-info" id="${recId}-summary-info">
+                            <div class="rec-loading">Loading...</div>
+                        </div>
+                        <button class="rec-expand-btn" id="${recId}-expand-btn" style="display: none;">
+                            <span class="rec-expand-arrow">▼</span> <span class="rec-expand-text">Show Details</span>
+                        </button>
                     </div>
-                    <div class="rec-details">
-                        <span class="rec-location">${escapeHtml(location)}</span>
-                    </div>
-                    <div class="rec-place-details" id="${recId}-details" style="display: block;">
+                    <div class="rec-place-details" id="${recId}-details" style="display: none;">
                         <div class="rec-loading">Loading details...</div>
                     </div>
                 </li>
@@ -943,6 +951,79 @@ function showHotspotModal(lat, lng, overlappingHotspots) {
     
     // Load all place details in bulk
     loadAllPlaceDetails(modalBody);
+    
+    // Add click handlers for expand buttons
+    setTimeout(() => {
+        const expandButtons = modalBody.querySelectorAll('.rec-expand-btn');
+        expandButtons.forEach(button => {
+            button.addEventListener('click', function() {
+                const recId = this.id.replace('-expand-btn', '');
+                const detailsDiv = document.getElementById(`${recId}-details`);
+                const arrow = this.querySelector('.rec-expand-arrow');
+                const text = this.querySelector('.rec-expand-text');
+                
+                if (detailsDiv) {
+                    const isExpanded = detailsDiv.style.display !== 'none';
+                    if (isExpanded) {
+                        detailsDiv.style.display = 'none';
+                        arrow.textContent = '▼';
+                        text.textContent = 'Show Details';
+                        this.classList.remove('expanded');
+                    } else {
+                        detailsDiv.style.display = 'block';
+                        arrow.textContent = '▲';
+                        text.textContent = 'Hide Details';
+                        this.classList.add('expanded');
+                    }
+                }
+            });
+        });
+    }, 100);
+}
+
+/**
+ * Update place summary with key information
+ * @param {string} recId - Recommendation ID
+ * @param {Object} place - Place details object
+ */
+function updatePlaceSummary(recId, place) {
+    const summaryInfo = document.getElementById(`${recId}-summary-info`);
+    if (!summaryInfo) return;
+    
+    let summaryHtml = '<div class="rec-summary-content">';
+    
+    // Rating
+    if (place.rating !== undefined) {
+        const stars = '⭐'.repeat(Math.round(place.rating));
+        const ratingText = place.user_ratings_total 
+            ? `${place.rating.toFixed(1)} ${stars} (${place.user_ratings_total.toLocaleString()} reviews)`
+            : `${place.rating.toFixed(1)} ${stars}`;
+        summaryHtml += `<div class="rec-summary-rating">${ratingText}</div>`;
+    }
+    
+    // Address (shortened)
+    if (place.formatted_address) {
+        const shortAddress = place.formatted_address.split(',')[0]; // Just street address
+        summaryHtml += `<div class="rec-summary-address">📍 ${escapeHtml(shortAddress)}</div>`;
+    }
+    
+    // Price level
+    if (place.price_level !== undefined) {
+        const priceSymbols = '$'.repeat(place.price_level + 1);
+        summaryHtml += `<div class="rec-summary-price">💰 ${priceSymbols}</div>`;
+    }
+    
+    // Opening status
+    if (place.opening_hours) {
+        const isOpen = place.opening_hours.isOpen ? place.opening_hours.isOpen() : null;
+        if (isOpen !== null) {
+            const statusText = isOpen ? '<span style="color: #27ae60;">● Open now</span>' : '<span style="color: #e74c3c;">● Closed now</span>';
+            summaryHtml += `<div class="rec-summary-status">${statusText}</div>`;
+        }
+    }
+    
+    summaryHtml += '</div>';
+    summaryInfo.innerHTML = summaryHtml;
 }
 
 /**
@@ -999,19 +1080,25 @@ async function loadAllPlaceDetails(modalBody) {
                         console.log(`Fetching place details for place_id: ${placeId}`);
                         const placeDetails = await fetchPlaceDetails(placeId);
                         console.log(`Successfully fetched details for ${placeName}:`, placeDetails);
+                        
+                        // Update summary with key info
+                        updatePlaceSummary(recId, placeDetails);
+                        
+                        // Store full details for expansion
                         detailsDiv.innerHTML = formatPlaceDetails(placeDetails);
-                        // Hide the button since details are now shown
-                        const button = item.querySelector('.rec-load-details-btn');
-                        if (button) {
-                            button.style.display = 'none';
+                        
+                        // Show expand button
+                        const expandBtn = document.getElementById(`${recId}-expand-btn`);
+                        if (expandBtn) {
+                            expandBtn.style.display = 'flex';
                         }
                     } catch (error) {
                         console.error(`Error fetching place details for ${placeName} (place_id: ${placeId}):`, error);
-                        detailsDiv.innerHTML = `<div class="rec-error">Unable to load details: ${error.message}. Check console for details.</div>`;
-                        const button = item.querySelector('.rec-load-details-btn');
-                        if (button) {
-                            button.style.display = 'none';
+                        const summaryInfo = document.getElementById(`${recId}-summary-info`);
+                        if (summaryInfo) {
+                            summaryInfo.innerHTML = `<div class="rec-error-small">Details unavailable</div>`;
                         }
+                        detailsDiv.innerHTML = `<div class="rec-error">Unable to load details: ${error.message}</div>`;
                     }
                 } else {
                     // No place_id available - try text search as fallback
@@ -1021,21 +1108,28 @@ async function loadAllPlaceDetails(modalBody) {
                         if (textSearchPlaceId) {
                             console.log(`Found place via text search: ${textSearchPlaceId}`);
                             const placeDetails = await fetchPlaceDetails(textSearchPlaceId);
+                            
+                            // Update summary
+                            updatePlaceSummary(recId, placeDetails);
+                            
+                            // Store full details
                             detailsDiv.innerHTML = formatPlaceDetails(placeDetails);
-                            const button = item.querySelector('.rec-load-details-btn');
-                            if (button) {
-                                button.style.display = 'none';
+                            
+                            // Show expand button
+                            const expandBtn = document.getElementById(`${recId}-expand-btn`);
+                            if (expandBtn) {
+                                expandBtn.style.display = 'flex';
                             }
                         } else {
                             throw new Error('Text search also failed');
                         }
                     } catch (error) {
                         console.error(`All methods failed for ${placeName}:`, error);
-                        detailsDiv.innerHTML = `<div class="rec-error">Place details not available. This location may not be in Google Places database.<br><small>Error: ${error.message}</small></div>`;
-                        const button = item.querySelector('.rec-load-details-btn');
-                        if (button) {
-                            button.style.display = 'none';
+                        const summaryInfo = document.getElementById(`${recId}-summary-info`);
+                        if (summaryInfo) {
+                            summaryInfo.innerHTML = `<div class="rec-error-small">Details unavailable</div>`;
                         }
+                        detailsDiv.innerHTML = `<div class="rec-error">Place details not available. This location may not be in Google Places database.</div>`;
                     }
                 }
             } catch (error) {

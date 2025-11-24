@@ -1391,6 +1391,77 @@ gmp-place-autocomplete input:focus {
     color: var(--color-gray-600);
 }
 
+.rec-summary {
+    display: flex;
+    flex-direction: column;
+    gap: var(--spacing-xs);
+}
+
+.rec-summary-info {
+    margin-top: var(--spacing-xs);
+    min-height: 20px;
+}
+
+.rec-summary-content {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--spacing-sm);
+    font-size: 0.85rem;
+    color: var(--color-gray-600);
+}
+
+.rec-summary-rating,
+.rec-summary-address,
+.rec-summary-price,
+.rec-summary-status {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+}
+
+.rec-expand-btn {
+    display: none;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 12px;
+    margin-top: var(--spacing-xs);
+    background: transparent;
+    border: 1px solid var(--color-gray-300);
+    border-radius: var(--radius-sm);
+    color: var(--color-gray-700);
+    cursor: pointer;
+    font-size: 0.85rem;
+    transition: all 0.2s ease;
+    width: fit-content;
+}
+
+.rec-expand-btn:hover {
+    background: var(--color-gray-50);
+    border-color: var(--color-primary);
+    color: var(--color-primary);
+}
+
+.rec-expand-btn.expanded {
+    background: var(--color-gray-50);
+    border-color: var(--color-primary);
+    color: var(--color-primary);
+}
+
+.rec-expand-arrow {
+    font-size: 0.75rem;
+    transition: transform 0.2s ease;
+}
+
+.rec-expand-btn.expanded .rec-expand-arrow {
+    transform: rotate(180deg);
+}
+
+.rec-error-small {
+    font-size: 0.8rem;
+    color: var(--color-gray-500);
+    font-style: italic;
+}
+
 .rec-place-details {
     margin-top: var(--spacing-md);
     padding: var(--spacing-md);
