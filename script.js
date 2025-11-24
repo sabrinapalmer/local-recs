@@ -1925,13 +1925,13 @@ async function createHeatmapLayer(placeType, recommendations) {
             // If all neighborhoods have the same count, use middle size
             linearScale = 0.5;
         }
-        // Map to radius range: 120m (min) to 500m (max) - increased min for better visibility
-        const baseRadius = 120 + (linearScale * 380); // Linear: 120m to 500m range
+        // Map to radius range: 90m (min) to 300m (max) for tighter, less fuzzy circles
+        const baseRadius = 90 + (linearScale * 210); // Linear: 90m to 300m range
         
         // Create multiple overlapping circles with smooth gradient fade for blur effect
-        // Optimized: Reduced to 10 layers for faster rendering while maintaining smooth gradient
-        const blurLayers = 10; // Reduced from 15 for better performance
-        const blurStep = baseRadius * 0.08; // Larger step for fewer layers
+        // Use fewer layers and smaller step to keep circles crisp
+        const blurLayers = 6;
+        const blurStep = baseRadius * 0.05;
         
         // Create blur layers (outer to inner) with Gaussian-like smooth opacity gradient
         for (let i = blurLayers - 1; i >= 0; i--) {
@@ -1940,10 +1940,10 @@ async function createHeatmapLayer(placeType, recommendations) {
             // Distance from center (normalized): 0 = center, 1 = edge
             const distanceFromCenter = i / blurLayers; // 0 (center) to 1 (outermost)
             // Gaussian curve: e^(-x²/2σ²) where σ controls the spread
-            const sigma = 0.4; // Controls how quickly opacity drops (lower = sharper, higher = smoother)
+            const sigma = 0.3; // Lower sigma for a tighter fade
             const gaussian = Math.exp(-Math.pow(distanceFromCenter, 2) / (2 * Math.pow(sigma, 2)));
-            // Apply smooth gradient with max opacity of 0.6 for better visibility
-            const layerOpacity = gaussian * 0.6;
+            // Apply smooth gradient with slightly lower max opacity to avoid fuzziness
+            const layerOpacity = gaussian * 0.45;
             
             // Ensure center is a proper LatLng object
             const center = new google.maps.LatLng(
