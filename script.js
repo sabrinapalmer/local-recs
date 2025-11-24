@@ -1094,10 +1094,10 @@ function updatePlaceSummary(recId, place) {
     const summaryInfo = document.getElementById(`${recId}-summary-info`);
     if (!summaryInfo) return;
     
-    // Horizontal layout for collapsed state: thumbnail on left, info on right
+    // Vertical layout for collapsed state: thumbnail on top, info below
     let summaryHtml = '<div class="rec-summary-content rec-summary-collapsed">';
     
-    // Thumbnail photo on left (only when collapsed) - 80x80px square
+    // Thumbnail photo on top (only when collapsed) - 80x80px square
     if (place.photos && place.photos.length > 0) {
         const photo = place.photos[0];
         const thumbnailUrl = photo.getUrl({ maxWidth: 150, maxHeight: 150 });
@@ -1543,23 +1543,8 @@ function formatExpandedDetails(place, recId) {
     
     html += '</div>';
     
-    // 3. Additional details (new information not in summary)
+    // 3. Additional details (new information not in summary - NO ADDRESS HERE, already in summary)
     html += '<div class="place-additional-details">';
-    
-    // Full Address (only show if different from shortened version)
-    if (place.formatted_address) {
-        const shortAddress = place.formatted_address.split(',')[0];
-        const fullAddress = place.formatted_address;
-        // Only show full address if it's actually longer/different
-        if (fullAddress !== shortAddress && fullAddress.length > shortAddress.length) {
-            html += `
-                <div class="place-info-row">
-                    <strong>📍 Full Address:</strong>
-                    <span>${escapeHtml(fullAddress)}</span>
-                </div>
-            `;
-        }
-    }
     
     // Phone
     if (place.formatted_phone_number) {
