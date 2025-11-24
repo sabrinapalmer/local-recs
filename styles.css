@@ -1416,56 +1416,58 @@ gmp-place-autocomplete input:focus {
 
 .rec-summary-content {
     display: flex;
-    flex-direction: column;
     gap: var(--spacing-sm);
     font-size: 0.85rem;
     color: var(--color-gray-600);
 }
 
+/* Collapsed state: horizontal layout (thumbnail left, info right) */
+.rec-summary-content.rec-summary-collapsed {
+    flex-direction: row;
+    align-items: flex-start;
+}
+
+/* Expanded state: vertical layout */
+.rec-summary.expanded .rec-summary-content {
+    flex-direction: column;
+}
+
 .rec-summary-photo {
-    width: 100%;
-    display: flex;
-    justify-content: center;
+    flex-shrink: 0;
     transition: all 0.3s ease;
 }
 
-.rec-summary.expanded .rec-summary-photo {
-    margin-bottom: var(--spacing-sm);
+.rec-thumbnail-container {
+    width: 80px;
+    height: 80px;
 }
 
 .rec-thumbnail {
-    width: 80px;
-    height: 80px;
+    width: 100%;
+    height: 100%;
     object-fit: cover;
     border-radius: var(--radius-sm);
     border: 1px solid var(--color-gray-200);
     transition: all 0.3s ease;
-    cursor: pointer;
 }
 
+/* Hide thumbnail when expanded (carousel shows in expanded-details instead) */
 .rec-summary.expanded .rec-thumbnail-container {
-    display: none; /* Hide thumbnail when expanded, carousel will show instead */
+    display: none;
 }
 
 .rec-expanded-details {
     margin-top: var(--spacing-md);
     padding-top: var(--spacing-md);
     border-top: 1px solid var(--color-gray-200);
+    width: 100%;
 }
 
 .place-expanded-content {
     display: flex;
     flex-direction: column;
     gap: var(--spacing-md);
-}
-
-/* When expanded, hide the collapsed layout and show expanded layout */
-.rec-summary.expanded .rec-summary-content {
-    flex-direction: column;
-}
-
-.rec-summary.expanded .rec-summary-info-text {
-    margin-bottom: var(--spacing-sm);
+    width: 100%;
 }
 
 .rec-summary-info-text {
