@@ -1574,15 +1574,15 @@ function formatExpandedDetails(place, recId) {
         `;
     }
     
-    // 2. Summary info (same info that was in collapsed view) - shown at top after photo
+    // 2. Summary info (same info that was in collapsed view) - slides down below photo
     html += '<div class="place-summary-expanded">';
     
-    // POI Name (first line, bigger)
-    html += `<div class="place-summary-expanded-name">${escapeHtml(place.name)}</div>`;
+    // Name (bold)
+    html += `<div class="place-summary-expanded-name"><strong>${escapeHtml(place.name)}</strong></div>`;
     
-    // Address (shortened) - shown first
+    // Address (shortened)
     if (place.formatted_address) {
-        const shortAddress = place.formatted_address.split(',')[0]; // Just street address
+        const shortAddress = place.formatted_address.split(',')[0];
         html += `<div class="place-summary-item">${escapeHtml(shortAddress)}</div>`;
     }
     
@@ -1595,30 +1595,66 @@ function formatExpandedDetails(place, recId) {
         html += `<div class="place-summary-item">${ratingText}</div>`;
     }
     
-    // Opening status
+    // Opening status with next time (same logic as collapsed view)
     if (place.opening_hours) {
         const isOpen = place.opening_hours.isOpen ? place.opening_hours.isOpen() : null;
         if (isOpen !== null) {
-            const statusText = isOpen ? 'Open now' : 'Closed now';
+            let statusText = isOpen ? 'Open now' : 'Closed now';
             const statusColor = isOpen ? '#27ae60' : '#e74c3c';
+            
+            // Get next open/close time
+            if (place.opening_hours.weekday_text && place.opening_hours.weekday_text.length > 0) {
+                const now = new Date();
+                const currentDay = now.getDay();
+                const currentTime = now.getHours() * 100 + now.getMinutes();
+                
+                if (!isOpen) {
+                    for (let i = 0; i < 7; i++) {
+                        const checkDay = (currentDay + i) % 7;
+                        const dayText = place.opening_hours.weekday_text[checkDay];
+                        if (dayText && dayText.includes(':')) {
+                            const match = dayText.match(/(\d{1,2}):(\d{2})\s*(AM|PM)/);
+                            if (match) {
+                                let hours = parseInt(match[1]);
+                                const minutes = parseInt(match[2]);
+                                const ampm = match[3];
+                                if (ampm === 'PM' && hours !== 12) hours += 12;
+                                if (ampm === 'AM' && hours === 12) hours = 0;
+                                const openTime = hours * 100 + minutes;
+                                
+                                if (i === 0 && openTime > currentTime) {
+                                    statusText += ` • Opens at ${match[1]}:${match[2]} ${ampm}`;
+                                    break;
+                                } else if (i > 0) {
+                                    const dayNames = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+                                    statusText += ` • Opens ${dayNames[checkDay]} at ${match[1]}:${match[2]} ${ampm}`;
+                                    break;
+                                }
+                            }
+                        }
+                    }
+                } else {
+                    const dayText = place.opening_hours.weekday_text[currentDay];
+                    if (dayText && dayText.includes('–')) {
+                        const parts = dayText.split('–');
+                        if (parts.length > 1) {
+                            const closeMatch = parts[1].match(/(\d{1,2}):(\d{2})\s*(AM|PM)/);
+                            if (closeMatch) {
+                                statusText += ` • Closes at ${closeMatch[1]}:${closeMatch[2]} ${closeMatch[3]}`;
+                            }
+                        }
+                    }
+                }
+            }
+            
             html += `<div class="place-summary-item" style="color: ${statusColor};">${statusText}</div>`;
         }
     }
     
     html += '</div>';
     
-    // 3. Additional details (new information not in summary - NO ADDRESS HERE, already in summary)
+    // 3. Additional details: Hours and action links
     html += '<div class="place-additional-details">';
-    
-    // Phone
-    if (place.formatted_phone_number) {
-        html += `
-            <div class="place-info-row">
-                <strong>📞 Phone:</strong>
-                <a href="tel:${place.formatted_phone_number}">${escapeHtml(place.formatted_phone_number)}</a>
-            </div>
-        `;
-    }
     
     // Opening Hours (full schedule)
     if (place.opening_hours && place.opening_hours.weekday_text) {
@@ -1632,24 +1668,28 @@ function formatExpandedDetails(place, recId) {
         `;
     }
     
-    // Website
-    if (place.website) {
-        html += `
-            <div class="place-info-row">
-                <strong>🌐 Website:</strong>
-                <a href="${place.website}" target="_blank" rel="noopener noreferrer">Visit Website</a>
-            </div>
-        `;
+    // Action links: Directions, Website, Phone
+    html += '<div class="place-action-links">';
+    
+    // Directions link
+    if (place.geometry && place.geometry.location) {
+        const lat = typeof place.geometry.location.lat === 'function' ? place.geometry.location.lat() : place.geometry.location.lat;
+        const lng = typeof place.geometry.location.lng === 'function' ? place.geometry.location.lng() : place.geometry.location.lng;
+        const directionsUrl = `https://www.google.com/maps/dir/?api=1&destination=${lat},${lng}`;
+        html += `<a href="${directionsUrl}" target="_blank" rel="noopener noreferrer" class="place-action-link">📍 Get Directions</a>`;
     }
     
-    // Google Maps Link
-    if (place.url) {
-        html += `
-            <div class="place-info-row">
-                <a href="${place.url}" target="_blank" rel="noopener noreferrer" class="place-google-link">View on Google Maps</a>
-            </div>
-        `;
+    // Website link
+    if (place.website) {
+        html += `<a href="${place.website}" target="_blank" rel="noopener noreferrer" class="place-action-link">🌐 Visit Website</a>`;
     }
+    
+    // Phone link
+    if (place.formatted_phone_number) {
+        html += `<a href="tel:${place.formatted_phone_number}" class="place-action-link">📞 ${escapeHtml(place.formatted_phone_number)}</a>`;
+    }
+    
+    html += '</div>'; // Close place-action-links
     
     html += '</div></div>';
     return html;
