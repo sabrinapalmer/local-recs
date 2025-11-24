@@ -1101,12 +1101,26 @@ async function updateMapDisplayInternal() {
     });
 
     // Create visual heatmap effect - batch creation for better performance
-    // Use Promise.all for parallel processing of different types
+    // Process in chunks to avoid blocking the UI
     try {
-        const createPromises = Object.keys(byType).map(placeType => 
-            createHeatmapLayer(placeType, byType[placeType])
-        );
-        await Promise.all(createPromises);
+        const placeTypes = Object.keys(byType);
+        const chunkSize = 3; // Process 3 types at a time
+        
+        for (let i = 0; i < placeTypes.length; i += chunkSize) {
+            const chunk = placeTypes.slice(i, i + chunkSize);
+            const createPromises = chunk.map(placeType => 
+                createHeatmapLayer(placeType, byType[placeType])
+            );
+            await Promise.all(createPromises);
+            
+            // Yield to browser between chunks for smoother rendering
+            if (i + chunkSize < placeTypes.length) {
+                await new Promise(resolve => setTimeout(resolve, 0));
+            }
+        }
+        
+        // Final cache rebuild after all layers are created
+        buildClickableCirclesCache();
     } catch (err) {
         console.error('Error creating heatmap layers:', err);
     }
