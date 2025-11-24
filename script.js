@@ -872,17 +872,24 @@ function showHotspotModal(lat, lng, overlappingHotspots) {
         // Display recommendations for this type
         Object.keys(byPlace).sort().forEach(placeName => {
             const recs = byPlace[placeName];
-            const location = recs[0].location_name || 'Unknown location';
+            const firstRec = recs[0];
+            const location = firstRec.location_name || 'Unknown location';
             const recCount = recs.length > 1 ? ` <span class="rec-count">(${recs.length})</span>` : '';
+            const placeId = firstRec.place_id || null;
+            const recId = `rec-${firstRec.id || Math.random().toString(36).substr(2, 9)}`;
             
             content += `
-                <li class="hotspot-recommendation-item">
+                <li class="hotspot-recommendation-item" data-place-id="${placeId || ''}" data-rec-id="${recId}">
                     <div class="rec-header">
                         <strong class="rec-name">${escapeHtml(placeName)}</strong>${recCount}
                     </div>
                     <div class="rec-details">
                         <span class="rec-location">${escapeHtml(location)}</span>
                     </div>
+                    <div class="rec-place-details" id="${recId}-details" style="display: none;">
+                        <div class="rec-loading">Loading details...</div>
+                    </div>
+                    ${placeId ? `<button class="rec-load-details-btn" data-place-id="${placeId}" data-rec-id="${recId}" style="margin-top: 8px; padding: 6px 12px; background: #667eea; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 12px;">Show Details</button>` : ''}
                 </li>
             `;
         });
@@ -920,6 +927,189 @@ function showHotspotModal(lat, lng, overlappingHotspots) {
             }
         });
     });
+    
+    // Add click handlers for "Show Details" buttons
+    const detailButtons = modalBody.querySelectorAll('.rec-load-details-btn');
+    detailButtons.forEach(button => {
+        button.addEventListener('click', async function() {
+            const placeId = this.getAttribute('data-place-id');
+            const recId = this.getAttribute('data-rec-id');
+            const detailsDiv = document.getElementById(`${recId}-details`);
+            
+            if (!placeId || !detailsDiv) return;
+            
+            // Toggle details visibility
+            const isVisible = detailsDiv.style.display !== 'none';
+            if (isVisible) {
+                detailsDiv.style.display = 'none';
+                this.textContent = 'Show Details';
+            } else {
+                // Show loading state
+                detailsDiv.style.display = 'block';
+                this.textContent = 'Loading...';
+                this.disabled = true;
+                
+                try {
+                    // Fetch place details
+                    const placeDetails = await fetchPlaceDetails(placeId);
+                    detailsDiv.innerHTML = formatPlaceDetails(placeDetails);
+                    this.textContent = 'Hide Details';
+                } catch (error) {
+                    console.error('Error fetching place details:', error);
+                    detailsDiv.innerHTML = '<div class="rec-error">Unable to load details. Please try again later.</div>';
+                    this.textContent = 'Show Details';
+                } finally {
+                    this.disabled = false;
+                }
+            }
+        });
+    });
+}
+
+/**
+ * Fetch place details from Google Places API
+ * @param {string} placeId - Google Place ID
+ * @returns {Promise<Object>} Place details object
+ */
+function fetchPlaceDetails(placeId) {
+    return new Promise((resolve, reject) => {
+        if (!appState.placesService) {
+            reject(new Error('Places service not initialized'));
+            return;
+        }
+        
+        const request = {
+            placeId: placeId,
+            fields: [
+                'name',
+                'formatted_address',
+                'formatted_phone_number',
+                'rating',
+                'user_ratings_total',
+                'opening_hours',
+                'photos',
+                'website',
+                'url',
+                'price_level',
+                'types'
+            ]
+        };
+        
+        appState.placesService.getDetails(request, (place, status) => {
+            if (status === google.maps.places.PlacesServiceStatus.OK && place) {
+                resolve(place);
+            } else {
+                reject(new Error(`Places service error: ${status}`));
+            }
+        });
+    });
+}
+
+/**
+ * Format place details for display
+ * @param {Object} place - Google Places API place object
+ * @returns {string} HTML string
+ */
+function formatPlaceDetails(place) {
+    let html = '<div class="place-details-content">';
+    
+    // Photo
+    if (place.photos && place.photos.length > 0) {
+        const photo = place.photos[0];
+        const photoUrl = photo.getUrl({ maxWidth: 400, maxHeight: 300 });
+        html += `
+            <div class="place-photo">
+                <img src="${photoUrl}" alt="${escapeHtml(place.name)}" style="width: 100%; border-radius: 8px; margin-bottom: 12px;">
+            </div>
+        `;
+    }
+    
+    // Address
+    if (place.formatted_address) {
+        html += `
+            <div class="place-info-row">
+                <strong>📍 Address:</strong>
+                <span>${escapeHtml(place.formatted_address)}</span>
+            </div>
+        `;
+    }
+    
+    // Phone
+    if (place.formatted_phone_number) {
+        html += `
+            <div class="place-info-row">
+                <strong>📞 Phone:</strong>
+                <a href="tel:${place.formatted_phone_number}">${escapeHtml(place.formatted_phone_number)}</a>
+            </div>
+        `;
+    }
+    
+    // Rating
+    if (place.rating !== undefined) {
+        const stars = '⭐'.repeat(Math.round(place.rating));
+        const ratingText = place.user_ratings_total 
+            ? `${place.rating.toFixed(1)} ${stars} (${place.user_ratings_total.toLocaleString()} reviews)`
+            : `${place.rating.toFixed(1)} ${stars}`;
+        html += `
+            <div class="place-info-row">
+                <strong>⭐ Google Rating:</strong>
+                <span>${ratingText}</span>
+            </div>
+        `;
+    }
+    
+    // Opening Hours
+    if (place.opening_hours && place.opening_hours.weekday_text) {
+        html += `
+            <div class="place-info-row">
+                <strong>🕐 Hours:</strong>
+                <div class="place-hours">
+                    ${place.opening_hours.weekday_text.map(day => `<div>${escapeHtml(day)}</div>`).join('')}
+                </div>
+            </div>
+        `;
+    } else if (place.opening_hours) {
+        const isOpen = place.opening_hours.isOpen() ? 'Open now' : 'Closed now';
+        html += `
+            <div class="place-info-row">
+                <strong>🕐 Status:</strong>
+                <span>${isOpen}</span>
+            </div>
+        `;
+    }
+    
+    // Price Level
+    if (place.price_level !== undefined) {
+        const priceSymbols = '$'.repeat(place.price_level + 1);
+        html += `
+            <div class="place-info-row">
+                <strong>💰 Price:</strong>
+                <span>${priceSymbols}</span>
+            </div>
+        `;
+    }
+    
+    // Website
+    if (place.website) {
+        html += `
+            <div class="place-info-row">
+                <strong>🌐 Website:</strong>
+                <a href="${place.website}" target="_blank" rel="noopener noreferrer">Visit Website</a>
+            </div>
+        `;
+    }
+    
+    // Google Maps Link
+    if (place.url) {
+        html += `
+            <div class="place-info-row">
+                <a href="${place.url}" target="_blank" rel="noopener noreferrer" class="place-google-link">View on Google Maps</a>
+            </div>
+        `;
+    }
+    
+    html += '</div>';
+    return html;
 }
 
 
@@ -1096,6 +1286,18 @@ async function createHeatmapLayer(placeType, recommendations) {
                     } else {
                         return; // Can't determine position
                     }
+                    
+                    // Zoom to the hotspot area
+                    const bounds = new google.maps.LatLngBounds();
+                    // Add a buffer around the circle center
+                    const buffer = circle.baseRadius * 1.5; // 1.5x the radius for better view
+                    const latOffset = buffer / 111000; // meters to degrees (approximate)
+                    const lngOffset = buffer / (111000 * Math.cos(clickedLat * Math.PI / 180));
+                    
+                    bounds.extend(new google.maps.LatLng(clickedLat - latOffset, clickedLng - lngOffset));
+                    bounds.extend(new google.maps.LatLng(clickedLat + latOffset, clickedLng + lngOffset));
+                    
+                    appState.map.fitBounds(bounds);
                     
                     // Find all overlapping hotspots at this location (optimized)
                     const overlappingHotspots = findOverlappingHotspots(clickedLat, clickedLng);
@@ -1338,13 +1540,15 @@ async function handleRecommendationSubmit(event) {
         const lat = location.lat();
         const lng = location.lng();
         
-        // Get place name from autocomplete if available
+        // Get place name and place_id from autocomplete if available
         let placeName = locationName;
+        let placeId = null;
         if (appState.autocomplete) {
             // Handle both new PlaceAutocompleteElement and classic Autocomplete
             if (typeof appState.autocomplete.getPlace === 'function') {
                 const place = appState.autocomplete.getPlace();
                 placeName = place?.name || locationName;
+                placeId = place?.place_id || null;
             } else if (appState.autocomplete.value) {
                 placeName = appState.autocomplete.value;
             }
@@ -1358,7 +1562,8 @@ async function handleRecommendationSubmit(event) {
                 locationName,
                 latitude: lat,
                 longitude: lng,
-                placeName
+                placeName,
+                placeId
             })
         });
 

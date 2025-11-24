@@ -51,8 +51,24 @@ function initializeDatabase() {
                 latitude REAL NOT NULL CHECK(latitude >= -90 AND latitude <= 90),
                 longitude REAL NOT NULL CHECK(longitude >= -180 AND longitude <= 180),
                 place_name TEXT,
+                place_id TEXT,
                 created_at DATETIME DEFAULT CURRENT_TIMESTAMP
             )`, (err) => {
+                if (err) {
+                    console.error('Error creating table:', err.message);
+                    reject(err);
+                } else {
+                    console.log('Database table ready');
+                    // Add place_id column if it doesn't exist (for existing databases)
+                    db.run(`ALTER TABLE recommendations ADD COLUMN place_id TEXT`, (alterErr) => {
+                        // Ignore error if column already exists
+                        if (alterErr && !alterErr.message.includes('duplicate column')) {
+                            console.warn('Note: place_id column may already exist:', alterErr.message);
+                        }
+                        resolve(db);
+                    });
+                }
+            });
                 if (err) {
                     console.error('Error creating table:', err.message);
                     reject(err);
