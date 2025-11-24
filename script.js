@@ -827,71 +827,99 @@ function showHotspotModal(lat, lng, overlappingHotspots) {
         modalTitle.textContent = `${totalRecommendations} Recommendation${totalRecommendations !== 1 ? 's' : ''} at This Location`;
     }
     
-    // Generate content - simple unified list
+    // Generate content with collapsible sections for each type
     let content = '<div class="hotspot-summary">';
     
-    // Summary by type at top
-    if (Object.keys(typeCounts).length > 1) {
-        content += '<div class="hotspot-type-summary">';
-        Object.keys(typeCounts).sort().forEach(placeType => {
-            const color = PLACE_TYPE_COLORS[placeType] || '#667eea';
-            const typeLabel = getPlaceTypeLabel(placeType);
-            const count = typeCounts[placeType];
-            content += `
-                <div class="hotspot-type-item">
-                    <span class="hotspot-type-dot" style="background: ${color};"></span>
-                    <span class="hotspot-type-label">${escapeHtml(typeLabel)}</span>
-                    <span class="hotspot-type-count">${count}</span>
-                </div>
-            `;
-        });
-        content += '</div>';
-    }
-    
-    // All recommendations in one list, grouped by place name
-    content += '<div class="hotspot-recommendations">';
-    content += '<h3 class="hotspot-recommendations-title">Recommendations</h3>';
-    content += '<ul class="hotspot-recommendations-list">';
-    
-    // Group by place name
-    const byPlace = {};
-    allRecommendations.forEach(rec => {
-        const key = rec.place_name || rec.location_name || 'Unknown';
-        if (!byPlace[key]) {
-            byPlace[key] = [];
-        }
-        byPlace[key].push(rec);
-    });
-    
-    // Sort by place name and display
-    Object.keys(byPlace).sort().forEach(placeName => {
-        const recs = byPlace[placeName];
-        const firstRec = recs[0];
-        const location = firstRec.location_name || 'Unknown location';
-        const placeType = firstRec.place_type;
+    // Collapsible sections by type
+    content += '<div class="hotspot-type-sections">';
+    Object.keys(overlappingHotspots).sort().forEach(placeType => {
+        const typeData = overlappingHotspots[placeType];
         const color = PLACE_TYPE_COLORS[placeType] || '#667eea';
         const typeLabel = getPlaceTypeLabel(placeType);
-        const count = recs.length > 1 ? ` <span class="rec-count">(${recs.length})</span>` : '';
+        const typeId = `hotspot-type-${placeType}`;
+        const count = typeCounts[placeType];
+        
+        // Collect all recommendations for this type
+        const typeRecommendations = [];
+        typeData.neighborhoods.forEach(neighborhood => {
+            neighborhood.recommendations.forEach(rec => {
+                typeRecommendations.push(rec);
+            });
+        });
         
         content += `
-            <li class="hotspot-recommendation-item">
-                <div class="rec-header">
-                    <span class="rec-type-dot" style="background: ${color};"></span>
-                    <strong class="rec-name">${escapeHtml(placeName)}</strong>${count}
+            <div class="hotspot-type-section">
+                <button class="hotspot-type-header" data-type-id="${typeId}">
+                    <span class="hotspot-type-dot" style="background: ${color};"></span>
+                    <span class="hotspot-type-name">${escapeHtml(typeLabel)}</span>
+                    <span class="hotspot-type-count-badge">${count}</span>
+                    <span class="hotspot-type-arrow" id="${typeId}-arrow">▼</span>
+                </button>
+                <div class="hotspot-type-content" id="${typeId}-content" style="display: none;">
+                    <ul class="hotspot-recommendations-list">
+        `;
+        
+        // Group by place name
+        const byPlace = {};
+        typeRecommendations.forEach(rec => {
+            const key = rec.place_name || rec.location_name || 'Unknown';
+            if (!byPlace[key]) {
+                byPlace[key] = [];
+            }
+            byPlace[key].push(rec);
+        });
+        
+        // Display recommendations for this type
+        Object.keys(byPlace).sort().forEach(placeName => {
+            const recs = byPlace[placeName];
+            const location = recs[0].location_name || 'Unknown location';
+            const recCount = recs.length > 1 ? ` <span class="rec-count">(${recs.length})</span>` : '';
+            
+            content += `
+                <li class="hotspot-recommendation-item">
+                    <div class="rec-header">
+                        <strong class="rec-name">${escapeHtml(placeName)}</strong>${recCount}
+                    </div>
+                    <div class="rec-details">
+                        <span class="rec-location">${escapeHtml(location)}</span>
+                    </div>
+                </li>
+            `;
+        });
+        
+        content += `
+                    </ul>
                 </div>
-                <div class="rec-details">
-                    <span class="rec-type">${escapeHtml(typeLabel)}</span>
-                    <span class="rec-separator">•</span>
-                    <span class="rec-location">${escapeHtml(location)}</span>
-                </div>
-            </li>
+            </div>
         `;
     });
-    
-    content += '</ul></div></div>';
+    content += '</div></div>';
     
     modalBody.innerHTML = content;
     modal.style.display = 'flex';
+    
+    // Add click handlers for collapsible sections
+    const typeHeaders = modalBody.querySelectorAll('.hotspot-type-header');
+    typeHeaders.forEach(header => {
+        header.addEventListener('click', function() {
+            const typeId = this.getAttribute('data-type-id');
+            const content = document.getElementById(`${typeId}-content`);
+            const arrow = document.getElementById(`${typeId}-arrow`);
+            
+            if (content && arrow) {
+                const isExpanded = content.style.display !== 'none';
+                if (isExpanded) {
+                    content.style.display = 'none';
+                    arrow.textContent = '▼';
+                    this.classList.remove('expanded');
+                } else {
+                    content.style.display = 'block';
+                    arrow.textContent = '▲';
+                    this.classList.add('expanded');
+                }
+            }
+        });
+    });
 }
 
 
