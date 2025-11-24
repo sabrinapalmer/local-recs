@@ -701,7 +701,8 @@ function findOverlappingHotspots(lat, lng) {
             const distance = calculateDistance(lat, lng, circle.center.lat, circle.center.lng);
             
             // Check if clicked point is within the circle's radius
-            if (distance <= circle.baseRadius) {
+            // Use a slightly larger tolerance (1.1x) to account for click precision
+            if (distance <= circle.baseRadius * 1.1) {
                 const placeType = circle.placeType;
                 
                 if (!overlapping[placeType]) {
@@ -711,8 +712,16 @@ function findOverlappingHotspots(lat, lng) {
                     };
                 }
                 
-                // Add this neighborhood's recommendations
-                overlapping[placeType].neighborhoods.push(circle.neighborhoodData);
+                // Check if we already have this neighborhood (avoid duplicates)
+                const neighborhoodName = circle.neighborhoodData.name;
+                const alreadyAdded = overlapping[placeType].neighborhoods.some(
+                    n => n.name === neighborhoodName
+                );
+                
+                if (!alreadyAdded) {
+                    // Add this neighborhood's recommendations
+                    overlapping[placeType].neighborhoods.push(circle.neighborhoodData);
+                }
             }
         }
     });
