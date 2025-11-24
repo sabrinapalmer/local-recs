@@ -7,10 +7,9 @@ const AD_CONFIG = {
     // Your Google AdSense Publisher ID (starts with ca-pub-)
     PUBLISHER_ID: 'ca-pub-1825149073731971',
     
-    // Ad Slot IDs (get these from your AdSense account)
-    // Create ad units in AdSense and paste the slot IDs here
-    LEFT_AD_SLOT: 'YOUR_LEFT_AD_SLOT_ID',
-    RIGHT_AD_SLOT: 'YOUR_RIGHT_AD_SLOT_ID',
+    // Ad Slot IDs from AdSense account
+    LEFT_AD_SLOT: '1125853752',
+    RIGHT_AD_SLOT: '8812772081',
     
     // Ad dimensions
     AD_WIDTH: 160,
