@@ -894,10 +894,9 @@ function showHotspotModal(lat, lng, overlappingHotspots) {
                     <div class="rec-details">
                         <span class="rec-location">${escapeHtml(location)}</span>
                     </div>
-                    <div class="rec-place-details" id="${recId}-details" style="display: none;">
+                    <div class="rec-place-details" id="${recId}-details" style="display: block;">
                         <div class="rec-loading">Loading details...</div>
                     </div>
-                    <button class="rec-load-details-btn" data-place-id="${placeId || ''}" data-rec-id="${recId}" data-lat="${firstRec.latitude}" data-lng="${firstRec.longitude}" data-place-name="${escapeHtml(placeName)}" style="margin-top: 8px; padding: 6px 12px; background: #667eea; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 12px;" ${!placeId ? 'data-needs-lookup="true"' : ''}>${placeId ? 'Show Details' : 'Find Details'}</button>
                 </li>
             `;
         });
@@ -936,44 +935,90 @@ function showHotspotModal(lat, lng, overlappingHotspots) {
         });
     });
     
-    // Add click handlers for "Show Details" buttons and make rows clickable
-    const detailButtons = modalBody.querySelectorAll('.rec-load-details-btn');
-    detailButtons.forEach(button => {
-        button.addEventListener('click', async function(e) {
-            e.stopPropagation(); // Prevent row click
-            await handleShowDetails(this);
-        });
-    });
+    // Load all place details in bulk
+    loadAllPlaceDetails(modalBody);
+}
+
+/**
+ * Load place details for all recommendations in bulk
+ * @param {HTMLElement} modalBody - The modal body element
+ */
+async function loadAllPlaceDetails(modalBody) {
+    const recommendationItems = modalBody.querySelectorAll('.hotspot-recommendation-item');
+    const detailsPromises = [];
     
-    // Make recommendation rows clickable (if they have place_id)
-    const recommendationItems = modalBody.querySelectorAll('.hotspot-recommendation-item[data-place-id]:not([data-place-id=""])');
+    // Collect all items that need details
     recommendationItems.forEach(item => {
-        const placeId = item.getAttribute('data-place-id');
-        if (placeId) {
-            item.style.cursor = 'pointer';
-            item.addEventListener('click', async function(e) {
-                // Don't trigger if clicking on the button
-                if (e.target.classList.contains('rec-load-details-btn')) {
-                    return;
-                }
-                const recId = item.getAttribute('data-rec-id');
-                const detailsDiv = document.getElementById(`${recId}-details`);
-                const button = item.querySelector('.rec-load-details-btn');
-                
-                if (detailsDiv) {
-                    const isVisible = detailsDiv.style.display !== 'none';
-                    if (!isVisible && button) {
-                        // Trigger the button click
-                        await handleShowDetails(button);
-                    } else if (isVisible && button) {
-                        // Hide details
-                        detailsDiv.style.display = 'none';
-                        button.textContent = 'Show Details';
+        const recId = item.getAttribute('data-rec-id');
+        let placeId = item.getAttribute('data-place-id');
+        const needsLookup = item.querySelector('.rec-load-details-btn')?.getAttribute('data-needs-lookup') === 'true';
+        const lat = parseFloat(item.getAttribute('data-lat'));
+        const lng = parseFloat(item.getAttribute('data-lng'));
+        const placeName = item.getAttribute('data-place-name');
+        const detailsDiv = document.getElementById(`${recId}-details`);
+        
+        if (!detailsDiv) return;
+        
+        // Show loading state
+        detailsDiv.style.display = 'block';
+        detailsDiv.innerHTML = '<div class="rec-loading">Loading details...</div>';
+        
+        // Create promise for this item
+        const detailPromise = (async () => {
+            try {
+                // If no place_id, try to find it
+                if ((!placeId || placeId === '') && needsLookup && lat && lng) {
+                    try {
+                        placeId = await findPlaceIdByLocation(lat, lng, placeName);
+                        if (placeId) {
+                            item.setAttribute('data-place-id', placeId);
+                            const button = item.querySelector('.rec-load-details-btn');
+                            if (button) {
+                                button.setAttribute('data-place-id', placeId);
+                                button.removeAttribute('data-needs-lookup');
+                            }
+                        }
+                    } catch (error) {
+                        console.warn(`Could not find place_id for ${placeName}:`, error);
                     }
                 }
-            });
-        }
+                
+                // Fetch details if we have a place_id
+                if (placeId && placeId !== '') {
+                    const placeDetails = await fetchPlaceDetails(placeId);
+                    detailsDiv.innerHTML = formatPlaceDetails(placeDetails);
+                    // Hide the button since details are now shown
+                    const button = item.querySelector('.rec-load-details-btn');
+                    if (button) {
+                        button.style.display = 'none';
+                    }
+                } else {
+                    // No place_id available
+                    detailsDiv.innerHTML = '<div class="rec-error">Place details not available. This location may not be in Google Places database.</div>';
+                    const button = item.querySelector('.rec-load-details-btn');
+                    if (button) {
+                        button.style.display = 'none';
+                    }
+                }
+            } catch (error) {
+                console.error(`Error loading details for ${recId}:`, error);
+                detailsDiv.innerHTML = `<div class="rec-error">Unable to load details: ${error.message}</div>`;
+                const button = item.querySelector('.rec-load-details-btn');
+                if (button) {
+                    button.style.display = 'none';
+                }
+            }
+        })();
+        
+        detailsPromises.push(detailPromise);
     });
+    
+    // Wait for all details to load (with timeout to prevent hanging)
+    try {
+        await Promise.allSettled(detailsPromises);
+    } catch (error) {
+        console.error('Error loading place details in bulk:', error);
+    }
 }
 
 /**
