@@ -1414,29 +1414,37 @@ gmp-place-autocomplete input:focus {
     min-height: 20px;
 }
 
-.rec-summary-content {
-    display: flex;
-    gap: var(--spacing-md);
-    font-size: 0.9rem;
-    color: var(--color-gray-700);
-}
-
-/* Collapsed state: vertical layout (thumbnail top, info below) */
+/* Horizontal collapsed layout */
 .rec-summary-content.rec-summary-collapsed {
-    flex-direction: column;
+    display: flex;
+    flex-direction: row;
+    gap: 12px;
     align-items: flex-start;
 }
 
-/* Expanded state: vertical layout */
-.rec-summary.expanded .rec-summary-content {
+.rec-summary-info-text {
+    display: flex;
     flex-direction: column;
+    gap: 4px;
 }
 
-.rec-summary-photo {
-    flex-shrink: 0;
-    transition: all 0.3s ease;
+.rec-summary-address {
+    font-size: 0.9rem;
+    font-weight: 500;
+    color: var(--color-gray-800);
 }
 
+.rec-summary-rating {
+    color: #555;
+    font-size: 0.85rem;
+}
+
+.rec-summary-status {
+    font-size: 0.85rem;
+    font-weight: 600;
+}
+
+/* Thumbnail remains 80×80 */
 .rec-thumbnail-container {
     width: 80px;
     height: 80px;
@@ -1447,12 +1455,11 @@ gmp-place-autocomplete input:focus {
     width: 100%;
     height: 100%;
     object-fit: cover;
-    border-radius: var(--radius-sm);
+    border-radius: 6px;
     border: 1px solid var(--color-gray-200);
-    transition: all 0.3s ease;
 }
 
-/* Hide thumbnail when expanded (carousel shows in expanded-details instead) */
+/* Hide thumbnail when expanded */
 .rec-summary.expanded .rec-thumbnail-container {
     display: none;
 }
@@ -1460,37 +1467,118 @@ gmp-place-autocomplete input:focus {
 .rec-expanded-details {
     margin-top: var(--spacing-md);
     padding-top: var(--spacing-md);
-    border-top: 1px solid var(--color-gray-200);
     width: 100%;
 }
+
+/* ============================================================
+   🔵 ADDITIONAL DETAILS BELOW SUMMARY (matches bottom block)
+   ============================================================ */
+
+.place-additional-details {
+    border-top: 1px solid var(--color-gray-300);
+    margin-top: 12px;
+    padding-top: 12px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.place-info-row {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    font-size: 0.9rem;
+}
+
+/* ============================================================
+   🔵 EXPANDED VIEW LAYOUT (matches tall stacked boxes)
+   ============================================================ */
 
 .place-expanded-content {
     display: flex;
     flex-direction: column;
-    gap: var(--spacing-md);
+    gap: 16px;
     width: 100%;
 }
 
+/* Carousel container */
+.place-photo-carousel {
+    position: relative;
+    width: 100%;
+    margin-bottom: 8px;
+    border-radius: 12px;
+    overflow: hidden;
+}
+
+.carousel-container {
+    position: relative;
+    width: 100%;
+    aspect-ratio: 16 / 9;
+    border-radius: 12px;
+    background: var(--color-gray-100);
+    overflow: hidden;
+}
+
+/* Big image */
+.carousel-photo {
+    width: 100%;
+    height: auto;
+    max-height: 400px;
+    object-fit: cover;
+    display: block;
+    opacity: 1;
+    transition: opacity 0.3s ease-in-out;
+}
+
+/* LEFT & RIGHT ARROWS (match the sketch) */
+.carousel-prev,
+.carousel-next {
+    position: absolute;
+    top: 50%;
+    transform: translateY(-50%);
+    background: rgba(255,255,255,0.75);
+    border: none;
+    font-size: 2rem;
+    padding: 4px 10px;
+    cursor: pointer;
+    border-radius: 6px;
+}
+
+.carousel-prev { left: 8px; }
+.carousel-next { right: 8px; }
+
+/* ============================================================
+   🔵 EXPANDED SUMMARY BOX (matches the middle rectangle)
+   ============================================================ */
+
 .place-summary-expanded {
+    background: white;
+    border: 1px solid var(--color-gray-200);
+    border-radius: 12px;
+    padding: 16px;
     display: flex;
     flex-direction: column;
     gap: 6px;
-    padding: var(--spacing-md);
-    background: var(--color-gray-50);
-    border-radius: var(--radius-md);
-    margin-top: var(--spacing-sm);
 }
 
+/* POI name (first line, bigger) */
+.place-summary-expanded-name {
+    font-size: 1.2rem;
+    font-weight: 700;
+    margin-bottom: 4px;
+    color: var(--color-gray-800);
+}
+
+/* Address, rating, status (three stacked lines) */
 .place-summary-item {
     font-size: 0.9rem;
     color: var(--color-gray-700);
-    line-height: 1.4;
 }
 
+/* Address specifically slightly more bold */
 .place-summary-item:first-child {
-    font-size: 0.95rem;
+    font-weight: 600;
     color: var(--color-gray-800);
-    font-weight: 500;
 }
 
 .rec-summary-info-text {

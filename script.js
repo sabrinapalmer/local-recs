@@ -1516,6 +1516,9 @@ function formatExpandedDetails(place, recId) {
     // 2. Summary info (same info that was in collapsed view) - shown at top after photo
     html += '<div class="place-summary-expanded">';
     
+    // POI Name (first line, bigger)
+    html += `<div class="place-summary-expanded-name">${escapeHtml(place.name)}</div>`;
+    
     // Address (shortened) - shown first
     if (place.formatted_address) {
         const shortAddress = place.formatted_address.split(',')[0]; // Just street address
