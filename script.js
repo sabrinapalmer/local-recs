@@ -992,6 +992,19 @@ function updatePlaceSummary(recId, place) {
     
     let summaryHtml = '<div class="rec-summary-content">';
     
+    // Thumbnail photo
+    if (place.photos && place.photos.length > 0) {
+        const photo = place.photos[0];
+        const photoUrl = photo.getUrl({ maxWidth: 150, maxHeight: 150 });
+        summaryHtml += `
+            <div class="rec-summary-photo">
+                <img src="${photoUrl}" alt="${escapeHtml(place.name)}" class="rec-thumbnail">
+            </div>
+        `;
+    }
+    
+    summaryHtml += '<div class="rec-summary-info-text">';
+    
     // Rating
     if (place.rating !== undefined) {
         const stars = '⭐'.repeat(Math.round(place.rating));
@@ -1022,7 +1035,7 @@ function updatePlaceSummary(recId, place) {
         }
     }
     
-    summaryHtml += '</div>';
+    summaryHtml += '</div></div>';
     summaryInfo.innerHTML = summaryHtml;
 }
 

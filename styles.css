@@ -1404,10 +1404,30 @@ gmp-place-autocomplete input:focus {
 
 .rec-summary-content {
     display: flex;
-    flex-wrap: wrap;
     gap: var(--spacing-sm);
     font-size: 0.85rem;
     color: var(--color-gray-600);
+    align-items: flex-start;
+}
+
+.rec-summary-photo {
+    flex-shrink: 0;
+}
+
+.rec-thumbnail {
+    width: 80px;
+    height: 80px;
+    object-fit: cover;
+    border-radius: var(--radius-sm);
+    border: 1px solid var(--color-gray-200);
+}
+
+.rec-summary-info-text {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    flex: 1;
+    min-width: 0;
 }
 
 .rec-summary-rating,
