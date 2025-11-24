@@ -820,18 +820,24 @@ async function createHeatmapLayer(placeType, recommendations) {
                     content: infoContent
                 });
                 
-                // Add click listener to show recommendations list
-                circle.addListener('click', () => {
-                    // Close any other open info windows
-                    if (appState.currentInfoWindow) {
-                        appState.currentInfoWindow.close();
-                    }
-                    infoWindow.open(appState.map, null);
-                    appState.currentInfoWindow = infoWindow;
+                // Add click listener to show recommendations list in modal
+                circle.addListener('click', (event) => {
+                    // Get the clicked position from the event
+                    const clickedLat = event.latLng.lat();
+                    const clickedLng = event.latLng.lng();
+                    
+                    // Find all overlapping hotspots at this location
+                    const overlappingHotspots = findOverlappingHotspots(clickedLat, clickedLng);
+                    
+                    // Show modal with all overlapping hotspots
+                    showHotspotModal(clickedLat, clickedLng, overlappingHotspots);
                 });
                 
                 // Store neighborhood data with the main circle
                 circle.neighborhoodData = neighborhood;
+                circle.placeType = placeType; // Store place type for finding overlaps
+                circle.baseRadius = baseRadius; // Store base radius for overlap detection
+                circle.center = neighborhood.center; // Store center for overlap detection
             }
             
             circlesToAdd.push(circle);
@@ -1293,7 +1299,24 @@ function setupTopControls() {
             if (e.key === 'Escape' && addModal.classList.contains('show')) {
                 addModal.classList.remove('show');
             }
+            // Also close hotspot modal with Escape
+            const hotspotModal = document.getElementById('hotspotModal');
+            if (e.key === 'Escape' && hotspotModal && hotspotModal.style.display !== 'none') {
+                hotspotModal.style.display = 'none';
+            }
         });
+        
+        // Setup hotspot modal close button
+        const hotspotModalClose = document.getElementById('hotspotModalClose');
+        const hotspotModal = document.getElementById('hotspotModal');
+        if (hotspotModalClose && hotspotModal) {
+            hotspotModalClose.addEventListener('click', () => {
+                hotspotModal.style.display = 'none';
+            });
+            
+            // Close modal when clicking outside (on the overlay, but this is a sidebar so maybe not needed)
+            // For sidebar, we'll just use the close button
+        }
     }
 }
 
