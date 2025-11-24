@@ -1872,6 +1872,12 @@ gmp-place-autocomplete input:focus {
     font-variant-numeric: tabular-nums;
 }
 
+.hotspot-label-detail {
+    font-size: 0.7rem;
+    color: #64748b;
+    margin-top: 2px;
+}
+
 @media (max-width: 768px) {
     .hotspot-modal {
         width: 100vw;

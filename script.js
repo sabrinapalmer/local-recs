@@ -106,6 +106,8 @@ class AppState {
         this.heatmapLayers = {};
         this.halftoneOverlays = []; // Store halftone overlays for cleanup
         this.hotspotLabelOverlays = []; // Store hotspot label overlays
+        this.activeHotspotLabels = {}; // Track active label overlays per neighborhood
+        this.neighborhoodAggregates = {}; // Aggregated stats per neighborhood
         this.currentInfoWindow = null; // Track open info window
         this.allRecommendations = [];
         this.filteredRecommendations = [];
@@ -173,6 +175,8 @@ class AppState {
         }
         this.halftoneOverlays = [];
         this.hotspotLabelOverlays = [];
+        this.activeHotspotLabels = {};
+        this.neighborhoodAggregates = {};
         this.clickableCircles = []; // Clear clickable circles cache
         // Clear metadata
         this.heatmapLayers = {};
@@ -197,6 +201,49 @@ function hexToRgb(hex) {
         g: parseInt(result[2], 16),
         b: parseInt(result[3], 16)
     } : { r: 102, g: 126, b: 234 };
+}
+
+/**
+ * Build aggregated stats for each neighborhood across all filtered recommendations
+ * @param {Array} recommendations
+ */
+function buildNeighborhoodAggregates(recommendations) {
+    const aggregates = {};
+    
+    recommendations.forEach(rec => {
+        const neighborhood = rec.location_name || 'Unknown';
+        if (!aggregates[neighborhood]) {
+            aggregates[neighborhood] = {
+                name: neighborhood,
+                typeCounts: {},
+                totalCount: 0,
+                totalLat: 0,
+                totalLng: 0,
+                count: 0
+            };
+        }
+        
+        const agg = aggregates[neighborhood];
+        agg.totalLat += rec.latitude;
+        agg.totalLng += rec.longitude;
+        agg.count++;
+        agg.totalCount++;
+        
+        const type = rec.place_type || 'other';
+        agg.typeCounts[type] = (agg.typeCounts[type] || 0) + 1;
+    });
+    
+    Object.values(aggregates).forEach(agg => {
+        agg.center = {
+            lat: agg.totalLat / agg.count,
+            lng: agg.totalLng / agg.count
+        };
+        delete agg.totalLat;
+        delete agg.totalLng;
+        delete agg.count;
+    });
+    
+    appState.neighborhoodAggregates = aggregates;
 }
 
 /**
@@ -1933,6 +1980,13 @@ function createHotspotLabelOverlayClass() {
                 div.appendChild(meta);
             }
             
+            if (this.options.detail) {
+                const detail = document.createElement('div');
+                detail.className = 'hotspot-label-detail';
+                detail.textContent = this.options.detail;
+                div.appendChild(detail);
+            }
+            
             this.div = div;
             const panes = this.getPanes();
             panes.overlayMouseTarget.appendChild(div);
@@ -1971,41 +2025,75 @@ function ensureHotspotLabelOverlayClass() {
 
 function showHotspotLabel(circle) {
     ensureHotspotLabelOverlayClass();
-    if (!HotspotLabelOverlay || !circle || !circle.center || circle.hotspotLabel) return;
+    if (!HotspotLabelOverlay || !circle || !circle.center) return;
     
     const neighborhood = circle.neighborhoodData;
-    if (!neighborhood) return;
+    if (!neighborhood || !neighborhood.name) return;
     
-    const center = typeof circle.center.lat === 'function'
+    const labelKey = neighborhood.name;
+    circle.hotspotLabelKey = labelKey;
+    
+    const aggregate = appState.neighborhoodAggregates
+        ? appState.neighborhoodAggregates[labelKey]
+        : null;
+    
+    let labelCenter = typeof circle.center.lat === 'function'
         ? circle.center
         : new google.maps.LatLng(circle.center.lat, circle.center.lng);
+    let metaText = `${neighborhood.count} • ${getPlaceTypeLabel(circle.placeType)}`;
+    let detailText = '';
     
-    const labelOverlay = new HotspotLabelOverlay(center, {
-        title: neighborhood.name,
-        meta: `${neighborhood.count} • ${getPlaceTypeLabel(circle.placeType)}`
-    });
-    labelOverlay.setMap(appState.map);
-    circle.hotspotLabel = labelOverlay;
-    
-    if (!appState.hotspotLabelOverlays) {
-        appState.hotspotLabelOverlays = [];
+    if (aggregate) {
+        metaText = `${aggregate.totalCount} places • ${Object.keys(aggregate.typeCounts).length} types`;
+        const typeSummary = Object.entries(aggregate.typeCounts)
+            .sort((a, b) => b[1] - a[1])
+            .slice(0, 3)
+            .map(([type, count]) => `${getPlaceTypeLabel(type)} ${count}`)
+            .join(' • ');
+        detailText = typeSummary;
+        if (aggregate.center) {
+            labelCenter = new google.maps.LatLng(aggregate.center.lat, aggregate.center.lng);
+        }
     }
-    appState.hotspotLabelOverlays.push(labelOverlay);
+    
+    if (!appState.activeHotspotLabels[labelKey]) {
+        const labelOverlay = new HotspotLabelOverlay(labelCenter, {
+            title: labelKey,
+            meta: metaText,
+            detail: detailText
+        });
+        labelOverlay.setMap(appState.map);
+        appState.hotspotLabelOverlays.push(labelOverlay);
+        appState.activeHotspotLabels[labelKey] = {
+            overlay: labelOverlay,
+            count: 1
+        };
+    } else {
+        appState.activeHotspotLabels[labelKey].count++;
+    }
 }
 
 function hideHotspotLabel(circle) {
-    if (!circle || !circle.hotspotLabel) return;
-    try {
-        circle.hotspotLabel.setMap(null);
-    } catch (err) {
-        console.warn('Error removing hotspot label:', err);
-    }
-    if (appState.hotspotLabelOverlays && circle.hotspotLabel) {
+    if (!circle) return;
+    const labelKey = circle.hotspotLabelKey || (circle.neighborhoodData && circle.neighborhoodData.name);
+    if (!labelKey || !appState.activeHotspotLabels[labelKey]) return;
+    
+    const entry = appState.activeHotspotLabels[labelKey];
+    entry.count = Math.max(0, entry.count - 1);
+    
+    if (entry.count === 0) {
+        try {
+            entry.overlay.setMap(null);
+        } catch (err) {
+            console.warn('Error removing hotspot label:', err);
+        }
         appState.hotspotLabelOverlays = appState.hotspotLabelOverlays.filter(
-            overlay => overlay !== circle.hotspotLabel
+            overlay => overlay !== entry.overlay
         );
+        delete appState.activeHotspotLabels[labelKey];
     }
-    circle.hotspotLabel = null;
+    
+    circle.hotspotLabelKey = null;
 }
 
 /**
@@ -2208,6 +2296,9 @@ async function updateMapDisplayInternal() {
     appState.filteredRecommendations = appState.allRecommendations.filter(rec =>
         appState.activeFilters.has(rec.place_type)
     );
+    
+    // Build neighborhood aggregates for informative labels
+    buildNeighborhoodAggregates(appState.filteredRecommendations);
 
     if (appState.filteredRecommendations.length === 0) {
         updateMapInfo();
