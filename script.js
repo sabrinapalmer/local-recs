@@ -1973,12 +1973,6 @@ async function createHeatmapLayer(placeType, recommendations) {
                 appState.halftoneOverlays.push(halftoneOverlay);
             }
             
-            // Store overlay for cleanup
-            if (!appState.halftoneOverlays) {
-                appState.halftoneOverlays = [];
-            }
-            appState.halftoneOverlays.push(halftoneOverlay);
-            
             // Create clickable circle (transparent, just for click detection) - only for innermost
             let circle = null;
             if (i === 0) {
