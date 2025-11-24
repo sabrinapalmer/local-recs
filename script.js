@@ -290,7 +290,13 @@ function initializeMap() {
         
         appState.map = new google.maps.Map(mapElement, mapConfig);
 
-        appState.placesService = new google.maps.places.PlacesService(appState.map);
+        // Initialize Places Service
+        if (google.maps.places && google.maps.places.PlacesService) {
+            appState.placesService = new google.maps.places.PlacesService(appState.map);
+            console.log('Places Service initialized successfully');
+        } else {
+            console.error('Places API not available. Please ensure Places API is enabled in Google Cloud Console.');
+        }
         appState.geocoder = new google.maps.Geocoder();
         
         // Enable 3D buildings when zoomed in (requires Map ID with 3D enabled)
@@ -969,14 +975,18 @@ async function loadAllPlaceDetails(modalBody) {
                 // If no place_id, try to find it
                 if ((!placeId || placeId === '') && needsLookup && lat && lng) {
                     try {
+                        console.log(`Attempting to find place_id for: ${placeName} at (${lat}, ${lng})`);
                         placeId = await findPlaceIdByLocation(lat, lng, placeName);
                         if (placeId) {
+                            console.log(`Found place_id: ${placeId} for ${placeName}`);
                             item.setAttribute('data-place-id', placeId);
                             const button = item.querySelector('.rec-load-details-btn');
                             if (button) {
                                 button.setAttribute('data-place-id', placeId);
                                 button.removeAttribute('data-needs-lookup');
                             }
+                        } else {
+                            console.warn(`No place_id found for ${placeName}`);
                         }
                     } catch (error) {
                         console.warn(`Could not find place_id for ${placeName}:`, error);
@@ -985,19 +995,47 @@ async function loadAllPlaceDetails(modalBody) {
                 
                 // Fetch details if we have a place_id
                 if (placeId && placeId !== '') {
-                    const placeDetails = await fetchPlaceDetails(placeId);
-                    detailsDiv.innerHTML = formatPlaceDetails(placeDetails);
-                    // Hide the button since details are now shown
-                    const button = item.querySelector('.rec-load-details-btn');
-                    if (button) {
-                        button.style.display = 'none';
+                    try {
+                        console.log(`Fetching place details for place_id: ${placeId}`);
+                        const placeDetails = await fetchPlaceDetails(placeId);
+                        console.log(`Successfully fetched details for ${placeName}:`, placeDetails);
+                        detailsDiv.innerHTML = formatPlaceDetails(placeDetails);
+                        // Hide the button since details are now shown
+                        const button = item.querySelector('.rec-load-details-btn');
+                        if (button) {
+                            button.style.display = 'none';
+                        }
+                    } catch (error) {
+                        console.error(`Error fetching place details for ${placeName} (place_id: ${placeId}):`, error);
+                        detailsDiv.innerHTML = `<div class="rec-error">Unable to load details: ${error.message}. Check console for details.</div>`;
+                        const button = item.querySelector('.rec-load-details-btn');
+                        if (button) {
+                            button.style.display = 'none';
+                        }
                     }
                 } else {
-                    // No place_id available
-                    detailsDiv.innerHTML = '<div class="rec-error">Place details not available. This location may not be in Google Places database.</div>';
-                    const button = item.querySelector('.rec-load-details-btn');
-                    if (button) {
-                        button.style.display = 'none';
+                    // No place_id available - try text search as fallback
+                    console.warn(`No place_id for ${placeName}, attempting text search fallback`);
+                    try {
+                        const textSearchPlaceId = await findPlaceByTextSearch(placeName, lat, lng);
+                        if (textSearchPlaceId) {
+                            console.log(`Found place via text search: ${textSearchPlaceId}`);
+                            const placeDetails = await fetchPlaceDetails(textSearchPlaceId);
+                            detailsDiv.innerHTML = formatPlaceDetails(placeDetails);
+                            const button = item.querySelector('.rec-load-details-btn');
+                            if (button) {
+                                button.style.display = 'none';
+                            }
+                        } else {
+                            throw new Error('Text search also failed');
+                        }
+                    } catch (error) {
+                        console.error(`All methods failed for ${placeName}:`, error);
+                        detailsDiv.innerHTML = `<div class="rec-error">Place details not available. This location may not be in Google Places database.<br><small>Error: ${error.message}</small></div>`;
+                        const button = item.querySelector('.rec-load-details-btn');
+                        if (button) {
+                            button.style.display = 'none';
+                        }
                     }
                 }
             } catch (error) {
@@ -1101,14 +1139,21 @@ function findPlaceIdByLocation(lat, lng, placeName) {
             return;
         }
         
+        if (!google.maps.places || !google.maps.places.PlacesServiceStatus) {
+            reject(new Error('Places API not loaded. Please enable Places API in Google Cloud Console.'));
+            return;
+        }
+        
         const request = {
             location: new google.maps.LatLng(lat, lng),
-            radius: 50, // 50 meters
+            radius: 100, // Increased to 100 meters for better results
             keyword: placeName,
             fields: ['place_id', 'name']
         };
         
         appState.placesService.nearbySearch(request, (results, status) => {
+            console.log(`Nearby search status: ${status}`, results);
+            
             if (status === google.maps.places.PlacesServiceStatus.OK && results && results.length > 0) {
                 // Find the best match by name similarity
                 const bestMatch = results.find(r => 
@@ -1116,10 +1161,81 @@ function findPlaceIdByLocation(lat, lng, placeName) {
                     r.name.toLowerCase().includes(placeName.toLowerCase())
                 ) || results[0];
                 resolve(bestMatch.place_id);
+            } else if (status === google.maps.places.PlacesServiceStatus.ZERO_RESULTS) {
+                reject(new Error('No places found nearby'));
+            } else if (status === google.maps.places.PlacesServiceStatus.REQUEST_DENIED) {
+                reject(new Error('Places API request denied. Please check that Places API is enabled and your API key has access.'));
+            } else if (status === google.maps.places.PlacesServiceStatus.OVER_QUERY_LIMIT) {
+                reject(new Error('Places API quota exceeded'));
             } else {
-                reject(new Error(`Place not found: ${status}`));
+                reject(new Error(`Place search failed: ${status}`));
             }
         });
+    });
+}
+
+/**
+ * Find place by text search as fallback method
+ * @param {string} query - Place name to search for
+ * @param {number} lat - Latitude for location bias
+ * @param {number} lng - Longitude for location bias
+ * @returns {Promise<string|null>} Place ID or null if not found
+ */
+function findPlaceByTextSearch(query, lat, lng) {
+    return new Promise((resolve, reject) => {
+        if (!appState.placesService) {
+            reject(new Error('Places service not initialized'));
+            return;
+        }
+        
+        if (!google.maps.places || !google.maps.places.PlacesServiceStatus) {
+            reject(new Error('Places API not loaded'));
+            return;
+        }
+        
+        const request = {
+            query: `${query}, Chicago, IL`,
+            location: new google.maps.LatLng(lat, lng),
+            fields: ['place_id', 'name', 'geometry']
+        };
+        
+        // Use textSearch if available, otherwise fall back to nearbySearch with broader radius
+        if (appState.placesService.textSearch) {
+            appState.placesService.textSearch(request, (results, status) => {
+                console.log(`Text search status: ${status}`, results);
+                
+                if (status === google.maps.places.PlacesServiceStatus.OK && results && results.length > 0) {
+                    // Find closest match by distance
+                    const location = new google.maps.LatLng(lat, lng);
+                    const sorted = results.map(r => ({
+                        place: r,
+                        distance: google.maps.geometry.spherical.computeDistanceBetween(
+                            location,
+                            r.geometry.location
+                        )
+                    })).sort((a, b) => a.distance - b.distance);
+                    
+                    resolve(sorted[0].place.place_id);
+                } else {
+                    reject(new Error(`Text search failed: ${status}`));
+                }
+            });
+        } else {
+            // Fallback: use nearbySearch with broader radius
+            const nearbyRequest = {
+                location: new google.maps.LatLng(lat, lng),
+                radius: 500, // 500 meters
+                keyword: query
+            };
+            
+            appState.placesService.nearbySearch(nearbyRequest, (results, status) => {
+                if (status === google.maps.places.PlacesServiceStatus.OK && results && results.length > 0) {
+                    resolve(results[0].place_id);
+                } else {
+                    reject(new Error(`Fallback search failed: ${status}`));
+                }
+            });
+        }
     });
 }
 
