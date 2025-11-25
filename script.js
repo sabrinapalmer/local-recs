@@ -297,18 +297,21 @@ function smoothFitBounds(bounds, options = {}) {
     const center = bounds.getCenter();
     const currentZoom = appState.map.getZoom();
     
-    // Calculate approximate target zoom
+    // Calculate target zoom using Google Maps projection
     const ne = bounds.getNorthEast();
     const sw = bounds.getSouthWest();
-    const latDiff = ne.lat() - sw.lat();
-    const lngDiff = ne.lng() - sw.lng();
     const mapDiv = appState.map.getDiv();
     const mapWidth = mapDiv.offsetWidth - (padding * 2);
     const mapHeight = mapDiv.offsetHeight - (padding * 2);
     
-    const latZoom = Math.log2(360 * mapHeight / (256 * latDiff));
-    const lngZoom = Math.log2(360 * mapWidth / (256 * lngDiff));
-    const targetZoom = Math.floor(Math.min(latZoom, lngZoom)) - 1;
+    // Use more accurate zoom calculation
+    const latFraction = (ne.lat() - sw.lat()) / 180;
+    const lngDiff = ne.lng() - sw.lng();
+    const lngFraction = ((lngDiff < 0) ? (lngDiff + 360) : lngDiff) / 360;
+    
+    const latZoom = Math.floor(Math.log2(mapHeight / (256 * latFraction)));
+    const lngZoom = Math.floor(Math.log2(mapWidth / (256 * lngFraction)));
+    const targetZoom = Math.min(latZoom, lngZoom, 21); // Cap at max zoom
     const zoomDiff = Math.abs(targetZoom - currentZoom);
     
     // If zoom change is very small, just pan smoothly
@@ -317,13 +320,16 @@ function smoothFitBounds(bounds, options = {}) {
         return;
     }
     
-    // Use smooth coordinated pan and zoom
+    // For smooth animation, pan first then zoom
+    // This creates a natural zoom-out effect
     appState.map.panTo(center);
     
-    // Start zoom animation shortly after pan starts for coordinated effect
-    setTimeout(() => {
-        appState.map.setZoom(targetZoom);
-    }, 100);
+    // Use requestAnimationFrame for smoother animation timing
+    requestAnimationFrame(() => {
+        setTimeout(() => {
+            appState.map.setZoom(targetZoom);
+        }, 100);
+    });
 }
 
 /**
@@ -2821,17 +2827,20 @@ function setupTopControls() {
             if (e.key === 'Escape' && hotspotModal && hotspotModal.style.display !== 'none') {
                 hotspotModal.style.display = 'none';
                 
-                // Zoom out smoothly to show all filtered recommendations
-                if (appState.map && appState.filteredRecommendations.length > 0) {
-                    const bounds = new google.maps.LatLngBounds();
-                    appState.filteredRecommendations.forEach(rec => {
-                        bounds.extend(new google.maps.LatLng(rec.latitude, rec.longitude));
-                    });
-                    smoothFitBounds(bounds, { padding: 50 });
-                } else if (appState.map) {
-                    // If no recommendations, zoom to default view
-                    smoothPanAndZoom(CONFIG.MAP_DEFAULT_CENTER, CONFIG.MAP_DEFAULT_ZOOM);
-                }
+                // Small delay to let sidebar close animation complete before zooming
+                setTimeout(() => {
+                    // Zoom out smoothly to show all filtered recommendations
+                    if (appState.map && appState.filteredRecommendations.length > 0) {
+                        const bounds = new google.maps.LatLngBounds();
+                        appState.filteredRecommendations.forEach(rec => {
+                            bounds.extend(new google.maps.LatLng(rec.latitude, rec.longitude));
+                        });
+                        smoothFitBounds(bounds, { padding: 50 });
+                    } else if (appState.map) {
+                        // If no recommendations, zoom to default view
+                        smoothPanAndZoom(CONFIG.MAP_DEFAULT_CENTER, CONFIG.MAP_DEFAULT_ZOOM);
+                    }
+                }, 100);
             }
         });
         
@@ -2842,17 +2851,20 @@ function setupTopControls() {
             hotspotModalClose.addEventListener('click', () => {
                 hotspotModal.style.display = 'none';
                 
-                // Zoom out smoothly to show all filtered recommendations
-                if (appState.map && appState.filteredRecommendations.length > 0) {
-                    const bounds = new google.maps.LatLngBounds();
-                    appState.filteredRecommendations.forEach(rec => {
-                        bounds.extend(new google.maps.LatLng(rec.latitude, rec.longitude));
-                    });
-                    smoothFitBounds(bounds, { padding: 50 });
-                } else if (appState.map) {
-                    // If no recommendations, zoom to default view
-                    smoothPanAndZoom(CONFIG.MAP_DEFAULT_CENTER, CONFIG.MAP_DEFAULT_ZOOM);
-                }
+                // Small delay to let sidebar close animation complete before zooming
+                setTimeout(() => {
+                    // Zoom out smoothly to show all filtered recommendations
+                    if (appState.map && appState.filteredRecommendations.length > 0) {
+                        const bounds = new google.maps.LatLngBounds();
+                        appState.filteredRecommendations.forEach(rec => {
+                            bounds.extend(new google.maps.LatLng(rec.latitude, rec.longitude));
+                        });
+                        smoothFitBounds(bounds, { padding: 50 });
+                    } else if (appState.map) {
+                        // If no recommendations, zoom to default view
+                        smoothPanAndZoom(CONFIG.MAP_DEFAULT_CENTER, CONFIG.MAP_DEFAULT_ZOOM);
+                    }
+                }, 100);
             });
             
             // Close modal when clicking outside (on the overlay, but this is a sidebar so maybe not needed)
