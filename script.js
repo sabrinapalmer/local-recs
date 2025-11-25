@@ -114,6 +114,7 @@ class AppState {
         this.activeFilters = new Set(Object.keys(PLACE_TYPE_COLORS));
         this.mapInitialized = false;
         this.userLocation = null;
+        this.initialBoundsFitted = false; // Track if initial bounds have been fitted
     }
 
     resetMarkers() {
@@ -2415,30 +2416,41 @@ async function updateMapDisplayInternal() {
         console.error('Error creating heatmap layers:', err);
     }
 
-    // Fit bounds after markers are created
-    setTimeout(() => {
-        if (appState.filteredRecommendations.length > 0) {
-            const bounds = new google.maps.LatLngBounds();
-            appState.filteredRecommendations.forEach(rec => {
-                bounds.extend(new google.maps.LatLng(rec.latitude, rec.longitude));
-            });
-            smoothFitBounds(bounds, { padding: 50 });
-            
-            if (appState.filteredRecommendations.length === 1) {
-                // Smoothly zoom in more for single recommendation
-                setTimeout(() => {
-                    const center = appState.map.getCenter();
-                    if (center) {
-                        smoothPanAndZoom(center, CONFIG.MAP_NEIGHBORHOOD_ZOOM);
-                    }
-                }, 300);
+    // Only fit bounds on initial load, not when filters change
+    // This preserves the user's current map view when they change filters
+    if (!appState.initialBoundsFitted) {
+        // Fit bounds after markers are created (only on first load)
+        setTimeout(() => {
+            if (appState.filteredRecommendations.length > 0) {
+                const bounds = new google.maps.LatLngBounds();
+                appState.filteredRecommendations.forEach(rec => {
+                    bounds.extend(new google.maps.LatLng(rec.latitude, rec.longitude));
+                });
+                smoothFitBounds(bounds, { padding: 50 });
+                
+                if (appState.filteredRecommendations.length === 1) {
+                    // Smoothly zoom in more for single recommendation
+                    setTimeout(() => {
+                        const center = appState.map.getCenter();
+                        if (center) {
+                            smoothPanAndZoom(center, CONFIG.MAP_NEIGHBORHOOD_ZOOM);
+                        }
+                    }, 300);
+                }
+                
+                // Mark that initial bounds have been fitted
+                appState.initialBoundsFitted = true;
+            } else {
+                smoothPanAndZoom(CONFIG.MAP_DEFAULT_CENTER, CONFIG.MAP_DEFAULT_ZOOM);
+                appState.initialBoundsFitted = true;
             }
-        } else {
-            smoothPanAndZoom(CONFIG.MAP_DEFAULT_CENTER, CONFIG.MAP_DEFAULT_ZOOM);
-        }
-        
+            
+            updateMapInfo();
+        }, 100);
+    } else {
+        // Just update the info, don't change map view
         updateMapInfo();
-    }, 100);
+    }
 }
 
 const updateMapDisplay = debounce(updateMapDisplayInternal, CONFIG.DEBOUNCE_DELAY);
