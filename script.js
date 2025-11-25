@@ -108,6 +108,7 @@ class AppState {
         this.hotspotLabelOverlays = []; // Store hotspot label overlays
         this.activeHotspotLabels = {}; // Track active label overlays per neighborhood
         this.neighborhoodAggregates = {}; // Aggregated stats per neighborhood
+        this.neighborhoodCircles = []; // Store all neighborhood circles for click detection
         this.currentInfoWindow = null; // Track open info window
         this.allRecommendations = [];
         this.filteredRecommendations = [];
@@ -115,6 +116,7 @@ class AppState {
         this.mapInitialized = false;
         this.userLocation = null;
         this.initialBoundsFitted = false; // Track if initial bounds have been fitted
+        this.isUpdating = false; // Prevent multiple simultaneous updates
     }
 
     resetMarkers() {
@@ -256,6 +258,9 @@ function getPlaceTypeLabel(placeType) {
     return PLACE_TYPE_LABELS[placeType] || placeType;
 }
 
+// Track active animations to prevent conflicts
+let activeAnimation = null;
+
 /**
  * Smoothly pan and zoom to a location
  * @param {google.maps.LatLng|Object} location - Location to pan to
@@ -263,6 +268,12 @@ function getPlaceTypeLabel(placeType) {
  */
 function smoothPanAndZoom(location, zoom) {
     if (!appState.map || !location) return;
+    
+    // Cancel any active animation
+    if (activeAnimation) {
+        clearTimeout(activeAnimation);
+        activeAnimation = null;
+    }
     
     const latLng = location instanceof google.maps.LatLng 
         ? location 
@@ -281,9 +292,10 @@ function smoothPanAndZoom(location, zoom) {
     appState.map.panTo(latLng);
     
     // Start zoom animation shortly after pan starts for smooth coordinated effect
-    setTimeout(() => {
+    activeAnimation = setTimeout(() => {
         appState.map.setZoom(zoom);
-    }, 100);
+        activeAnimation = null;
+    }, 120);
 }
 
 /**
@@ -293,6 +305,12 @@ function smoothPanAndZoom(location, zoom) {
  */
 function smoothFitBounds(bounds, options = {}) {
     if (!appState.map || !bounds || bounds.isEmpty()) return;
+    
+    // Cancel any active animation
+    if (activeAnimation) {
+        clearTimeout(activeAnimation);
+        activeAnimation = null;
+    }
     
     const padding = options.padding || 50;
     const center = bounds.getCenter();
@@ -327,9 +345,10 @@ function smoothFitBounds(bounds, options = {}) {
     
     // Use requestAnimationFrame for smoother animation timing
     requestAnimationFrame(() => {
-        setTimeout(() => {
+        activeAnimation = setTimeout(() => {
             appState.map.setZoom(targetZoom);
-        }, 100);
+            activeAnimation = null;
+        }, 120);
     });
 }
 
@@ -470,6 +489,82 @@ function initializeMap() {
         appState.map.addListener('dragend', () => {
             // Reset heading to north after dragging
             // Users can use right-click + drag to rotate the map
+        });
+        
+        // Add map click listener to open hotspots when clicking anywhere in a neighborhood
+        // This will only fire if the click is not on a circle (circles handle their own clicks)
+        appState.map.addListener('click', (event) => {
+            if (!event.latLng) return;
+            
+            const clickedLat = event.latLng.lat();
+            const clickedLng = event.latLng.lng();
+            
+            // Small delay to let circle click handlers fire first and check if they handled it
+            setTimeout(() => {
+                // If a circle was just clicked, don't process map click
+                if (circleClickJustHappened) {
+                    circleClickJustHappened = false;
+                    return;
+                }
+                
+                // Find all neighborhoods that contain this click point
+                const clickedNeighborhoods = findNeighborhoodsAtPoint(clickedLat, clickedLng);
+                
+                if (clickedNeighborhoods.length > 0) {
+                    // Collect all hotspots from all clicked neighborhoods
+                    const allHotspots = {};
+                    
+                    clickedNeighborhoods.forEach(neighborhood => {
+                        // Find all place types that have hotspots in this neighborhood
+                        const circlesToCheck = clickableCirclesCache || appState.clickableCircles;
+                        
+                        circlesToCheck.forEach(circle => {
+                            if (circle.neighborhoodData && 
+                                circle.neighborhoodData.name === neighborhood.name) {
+                                const placeType = circle.placeType;
+                                
+                                if (!allHotspots[placeType]) {
+                                    allHotspots[placeType] = {
+                                        placeType: placeType,
+                                        neighborhoods: []
+                                    };
+                                }
+                                
+                                // Check if we already added this neighborhood for this place type
+                                const alreadyAdded = allHotspots[placeType].neighborhoods.some(
+                                    n => n.name === neighborhood.name
+                                );
+                                
+                                if (!alreadyAdded) {
+                                    allHotspots[placeType].neighborhoods.push(neighborhood);
+                                }
+                            }
+                        });
+                    });
+                    
+                    // If we found hotspots, show the modal
+                    if (Object.keys(allHotspots).length > 0) {
+                        // Zoom to the clicked area
+                        const bounds = new google.maps.LatLngBounds();
+                        clickedNeighborhoods.forEach(neighborhood => {
+                            const buffer = (neighborhood.baseRadius || 200) * 1.5;
+                            const latOffset = buffer / 111000;
+                            const lngOffset = buffer / (111000 * Math.cos(clickedLat * Math.PI / 180));
+                            bounds.extend(new google.maps.LatLng(
+                                neighborhood.center.lat - latOffset,
+                                neighborhood.center.lng - lngOffset
+                            ));
+                            bounds.extend(new google.maps.LatLng(
+                                neighborhood.center.lat + latOffset,
+                                neighborhood.center.lng + lngOffset
+                            ));
+                        });
+                        smoothFitBounds(bounds, { padding: 50 });
+                        
+                        showHotspotModal(clickedLat, clickedLng, allHotspots);
+                    }
+                }
+            }, 100);
         });
         
         // Initialize Street View service
@@ -856,6 +951,64 @@ function groupByNeighborhood(recommendations) {
 }
 
 /**
+ * Find all neighborhoods that contain a given point
+ * @param {number} lat - Latitude of clicked point
+ * @param {number} lng - Longitude of clicked point
+ * @returns {Array} Array of neighborhood objects that contain this point
+ */
+function findNeighborhoodsAtPoint(lat, lng) {
+    const neighborhoods = [];
+    const circlesToCheck = clickableCirclesCache || appState.clickableCircles;
+    const tolerance = 1.1;
+    
+    for (let i = 0; i < circlesToCheck.length; i++) {
+        const circle = circlesToCheck[i];
+        
+        if (!circle.neighborhoodData || !circle.center) continue;
+        
+        // Get center coordinates
+        let centerLat, centerLng;
+        if (typeof circle.center.lat === 'function') {
+            centerLat = circle.center.lat();
+            centerLng = circle.center.lng();
+        } else {
+            centerLat = circle.center.lat;
+            centerLng = circle.center.lng;
+        }
+        
+        // Quick bounds check
+        const latDiff = Math.abs(lat - centerLat);
+        const lngDiff = Math.abs(lng - centerLng);
+        const maxRadius = circle.baseRadius * tolerance;
+        
+        // Skip if clearly outside bounds
+        if (latDiff * 111000 > maxRadius || lngDiff * 111000 * Math.cos(lat * Math.PI / 180) > maxRadius) {
+            continue;
+        }
+        
+        // Calculate exact distance
+        const distance = calculateDistance(lat, lng, centerLat, centerLng);
+        
+        if (distance <= maxRadius) {
+            // Check if we already added this neighborhood
+            const alreadyAdded = neighborhoods.some(
+                n => n.name === circle.neighborhoodData.name
+            );
+            
+            if (!alreadyAdded) {
+                neighborhoods.push({
+                    ...circle.neighborhoodData,
+                    baseRadius: circle.baseRadius,
+                    center: { lat: centerLat, lng: centerLng }
+                });
+            }
+        }
+    }
+    
+    return neighborhoods;
+}
+
+/**
  * Find all overlapping hotspots at a given location
  * @param {number} lat - Latitude of clicked point
  * @param {number} lng - Longitude of clicked point
@@ -863,6 +1016,9 @@ function groupByNeighborhood(recommendations) {
  */
 // Cache for clickable circles to speed up overlap detection
 let clickableCirclesCache = null;
+
+// Track if a circle click just happened to prevent map click from firing
+let circleClickJustHappened = false;
 
 /**
  * Build cache of clickable circles for faster lookup
@@ -2299,6 +2455,9 @@ async function createHeatmapLayer(placeType, recommendations) {
                     if (clickTimeout) return;
                     clickTimeout = setTimeout(() => { clickTimeout = null; }, 100);
                     
+                    // Mark that a circle click just happened to prevent map click from firing
+                    circleClickJustHappened = true;
+                    
                     let clickedLat, clickedLng;
                     if (event && event.latLng) {
                         clickedLat = event.latLng.lat();
@@ -2364,10 +2523,17 @@ async function createHeatmapLayer(placeType, recommendations) {
  */
 async function updateMapDisplayInternal() {
     if (!appState.map) return;
+    
+    // Prevent multiple simultaneous updates
+    if (appState.isUpdating) {
+        return;
+    }
+    appState.isUpdating = true;
 
-    // Clear all existing markers first
-    appState.resetMarkers();
-    appState.resetHeatmaps();
+    try {
+        // Clear all existing markers first
+        appState.resetMarkers();
+        appState.resetHeatmaps();
 
     // Filter recommendations based on active filters
     appState.filteredRecommendations = appState.allRecommendations.filter(rec =>
@@ -2450,6 +2616,9 @@ async function updateMapDisplayInternal() {
     } else {
         // Just update the info, don't change map view
         updateMapInfo();
+    }
+    } finally {
+        appState.isUpdating = false;
     }
 }
 
@@ -2670,8 +2839,15 @@ function setupFilterControls() {
                 appState.activeFilters.delete(placeType);
             }
             console.log('Filter changed:', placeType, 'checked:', this.checked, 'activeFilters:', Array.from(appState.activeFilters));
-            // Call update immediately (debounce will handle rapid changes)
-            updateMapDisplayInternal();
+            
+            // If sidebar is open, filter sidebar content instead of updating map
+            const hotspotModal = document.getElementById('hotspotModal');
+            if (hotspotModal && hotspotModal.style.display !== 'none' && appState.currentModalData) {
+                filterSidebarContent();
+            } else {
+                // Use debounced version for smoother updates
+                updateMapDisplay();
+            }
         });
     });
     
@@ -2704,8 +2880,15 @@ function setupFilterControls() {
             appState.activeFilters.clear();
             appState.activeFilters.add(placeType);
             console.log('Row clicked - isolated to:', placeType, 'activeFilters:', Array.from(appState.activeFilters));
-            // Call update immediately
-            updateMapDisplayInternal();
+            
+            // If sidebar is open, filter sidebar content instead of updating map
+            const hotspotModal = document.getElementById('hotspotModal');
+            if (hotspotModal && hotspotModal.style.display !== 'none' && appState.currentModalData) {
+                filterSidebarContent();
+            } else {
+                // Use debounced version for smoother updates
+                updateMapDisplay();
+            }
         });
     });
     
@@ -2718,8 +2901,15 @@ function setupFilterControls() {
                 appState.activeFilters.add(cb.value);
             });
             console.log('Select All clicked - activeFilters:', Array.from(appState.activeFilters));
-            // Call update immediately
-            updateMapDisplayInternal();
+            
+            // If sidebar is open, filter sidebar content instead of updating map
+            const hotspotModal = document.getElementById('hotspotModal');
+            if (hotspotModal && hotspotModal.style.display !== 'none' && appState.currentModalData) {
+                filterSidebarContent();
+            } else {
+                // Use debounced version for smoother updates
+                updateMapDisplay();
+            }
         });
     }
     
