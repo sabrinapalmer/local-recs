@@ -256,6 +256,77 @@ function getPlaceTypeLabel(placeType) {
 }
 
 /**
+ * Smoothly pan and zoom to a location
+ * @param {google.maps.LatLng|Object} location - Location to pan to
+ * @param {number} zoom - Target zoom level
+ */
+function smoothPanAndZoom(location, zoom) {
+    if (!appState.map || !location) return;
+    
+    const latLng = location instanceof google.maps.LatLng 
+        ? location 
+        : new google.maps.LatLng(location.lat || location.latitude, location.lng || location.longitude);
+    
+    const currentZoom = appState.map.getZoom();
+    const zoomDiff = Math.abs(zoom - currentZoom);
+    
+    // If zoom change is very small, just pan smoothly
+    if (zoomDiff < 0.5) {
+        appState.map.panTo(latLng);
+        return;
+    }
+    
+    // For larger zoom changes, coordinate pan and zoom smoothly
+    appState.map.panTo(latLng);
+    
+    // Start zoom animation shortly after pan starts for smooth coordinated effect
+    setTimeout(() => {
+        appState.map.setZoom(zoom);
+    }, 100);
+}
+
+/**
+ * Smoothly animate map to fit bounds
+ * @param {google.maps.LatLngBounds} bounds - Bounds to fit
+ * @param {Object} options - Options including padding
+ */
+function smoothFitBounds(bounds, options = {}) {
+    if (!appState.map || !bounds || bounds.isEmpty()) return;
+    
+    const padding = options.padding || 50;
+    const center = bounds.getCenter();
+    const currentZoom = appState.map.getZoom();
+    
+    // Calculate approximate target zoom
+    const ne = bounds.getNorthEast();
+    const sw = bounds.getSouthWest();
+    const latDiff = ne.lat() - sw.lat();
+    const lngDiff = ne.lng() - sw.lng();
+    const mapDiv = appState.map.getDiv();
+    const mapWidth = mapDiv.offsetWidth - (padding * 2);
+    const mapHeight = mapDiv.offsetHeight - (padding * 2);
+    
+    const latZoom = Math.log2(360 * mapHeight / (256 * latDiff));
+    const lngZoom = Math.log2(360 * mapWidth / (256 * lngDiff));
+    const targetZoom = Math.floor(Math.min(latZoom, lngZoom)) - 1;
+    const zoomDiff = Math.abs(targetZoom - currentZoom);
+    
+    // If zoom change is very small, just pan smoothly
+    if (zoomDiff < 0.5) {
+        appState.map.panTo(center);
+        return;
+    }
+    
+    // Use smooth coordinated pan and zoom
+    appState.map.panTo(center);
+    
+    // Start zoom animation shortly after pan starts for coordinated effect
+    setTimeout(() => {
+        appState.map.setZoom(targetZoom);
+    }, 100);
+}
+
+/**
  * Debounce function to limit function calls
  * @param {Function} func - Function to debounce
  * @param {number} wait - Wait time in milliseconds
@@ -412,7 +483,7 @@ function initializeMap() {
         const ensureMapSize = () => {
             if (appState.map) {
                 google.maps.event.trigger(appState.map, 'resize');
-                appState.map.setCenter(CONFIG.MAP_DEFAULT_CENTER);
+                appState.map.panTo(CONFIG.MAP_DEFAULT_CENTER);
             }
         };
 
@@ -477,8 +548,7 @@ function initializeNeighborhoodSearch() {
         appState.neighborhoodAutocomplete.addListener('place_changed', () => {
             const place = appState.neighborhoodAutocomplete.getPlace();
             if (place.geometry && appState.map) {
-                appState.map.setCenter(place.geometry.location);
-                appState.map.setZoom(CONFIG.MAP_NEIGHBORHOOD_ZOOM);
+                smoothPanAndZoom(place.geometry.location, CONFIG.MAP_NEIGHBORHOOD_ZOOM);
             }
         });
         
@@ -2246,7 +2316,7 @@ async function createHeatmapLayer(placeType, recommendations) {
                     bounds.extend(new google.maps.LatLng(clickedLat - latOffset, clickedLng - lngOffset));
                     bounds.extend(new google.maps.LatLng(clickedLat + latOffset, clickedLng + lngOffset));
                     
-                    appState.map.fitBounds(bounds);
+                    smoothFitBounds(bounds, { padding: 50 });
                     
                     const overlappingHotspots = findOverlappingHotspots(clickedLat, clickedLng);
                     if (Object.keys(overlappingHotspots).length > 0) {
@@ -2346,16 +2416,19 @@ async function updateMapDisplayInternal() {
             appState.filteredRecommendations.forEach(rec => {
                 bounds.extend(new google.maps.LatLng(rec.latitude, rec.longitude));
             });
-            appState.map.fitBounds(bounds);
+            smoothFitBounds(bounds, { padding: 50 });
             
             if (appState.filteredRecommendations.length === 1) {
+                // Smoothly zoom in more for single recommendation
                 setTimeout(() => {
-                    appState.map.setZoom(CONFIG.MAP_NEIGHBORHOOD_ZOOM);
-                }, 100);
+                    const center = appState.map.getCenter();
+                    if (center) {
+                        smoothPanAndZoom(center, CONFIG.MAP_NEIGHBORHOOD_ZOOM);
+                    }
+                }, 300);
             }
         } else {
-            appState.map.setCenter(CONFIG.MAP_DEFAULT_CENTER);
-            appState.map.setZoom(CONFIG.MAP_DEFAULT_ZOOM);
+            smoothPanAndZoom(CONFIG.MAP_DEFAULT_CENTER, CONFIG.MAP_DEFAULT_ZOOM);
         }
         
         updateMapInfo();
@@ -2652,16 +2725,14 @@ function setupTopControls() {
                     // Classic autocomplete - trigger place_changed
                     const place = appState.neighborhoodAutocomplete.getPlace();
                     if (place && place.geometry && appState.map) {
-                        appState.map.setCenter(place.geometry.location);
-                        appState.map.setZoom(CONFIG.MAP_NEIGHBORHOOD_ZOOM);
+                        smoothPanAndZoom(place.geometry.location, CONFIG.MAP_NEIGHBORHOOD_ZOOM);
                     }
                 }
             } else if (query && appState.geocoder) {
                 // Fallback: geocode the search term
                 appState.geocoder.geocode({ address: query + ', Chicago, IL' }, (results, status) => {
                     if (status === 'OK' && results[0] && appState.map) {
-                        appState.map.setCenter(results[0].geometry.location);
-                        appState.map.setZoom(CONFIG.MAP_NEIGHBORHOOD_ZOOM);
+                        smoothPanAndZoom(results[0].geometry.location, CONFIG.MAP_NEIGHBORHOOD_ZOOM);
                     }
                 });
             }
@@ -2749,6 +2820,18 @@ function setupTopControls() {
             const hotspotModal = document.getElementById('hotspotModal');
             if (e.key === 'Escape' && hotspotModal && hotspotModal.style.display !== 'none') {
                 hotspotModal.style.display = 'none';
+                
+                // Zoom out smoothly to show all filtered recommendations
+                if (appState.map && appState.filteredRecommendations.length > 0) {
+                    const bounds = new google.maps.LatLngBounds();
+                    appState.filteredRecommendations.forEach(rec => {
+                        bounds.extend(new google.maps.LatLng(rec.latitude, rec.longitude));
+                    });
+                    smoothFitBounds(bounds, { padding: 50 });
+                } else if (appState.map) {
+                    // If no recommendations, zoom to default view
+                    smoothPanAndZoom(CONFIG.MAP_DEFAULT_CENTER, CONFIG.MAP_DEFAULT_ZOOM);
+                }
             }
         });
         
@@ -2758,6 +2841,18 @@ function setupTopControls() {
         if (hotspotModalClose && hotspotModal) {
             hotspotModalClose.addEventListener('click', () => {
                 hotspotModal.style.display = 'none';
+                
+                // Zoom out smoothly to show all filtered recommendations
+                if (appState.map && appState.filteredRecommendations.length > 0) {
+                    const bounds = new google.maps.LatLngBounds();
+                    appState.filteredRecommendations.forEach(rec => {
+                        bounds.extend(new google.maps.LatLng(rec.latitude, rec.longitude));
+                    });
+                    smoothFitBounds(bounds, { padding: 50 });
+                } else if (appState.map) {
+                    // If no recommendations, zoom to default view
+                    smoothPanAndZoom(CONFIG.MAP_DEFAULT_CENTER, CONFIG.MAP_DEFAULT_ZOOM);
+                }
             });
             
             // Close modal when clicking outside (on the overlay, but this is a sidebar so maybe not needed)
